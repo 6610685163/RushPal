@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // O3DController _controller = O3DController(); // เวอร์ชั่นใหม่อาจจะไม่ต้องใช้ Controller ถ้าแค่โชว์เฉยๆ แต่ถ้าใช้ต้องมั่นใจว่า o3d รองรับ
   final O3DController _controller = O3DController();
 
   @override
@@ -76,7 +77,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               autoPlay: true,
                               autoRotate: false,
                               cameraControls: false,
-                              animationName: 'mixamo.com',
+                              animationName:
+                                  'mixamo.com', // ตรวจสอบชื่อ animation ในไฟล์ glb ว่าตรงไหม
                               backgroundColor: Colors.transparent,
                             ),
                           ),
