@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
-import 'package:rushpal/screens/login_screen.dart';
+import 'login_screen.dart';
+import 'edit_profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -45,7 +46,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildMenuTile(
               title: "Edit profile",
               onTap: () {
-                // Navigate to Edit Profile (Page 6)
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EditProfileScreen(),
+                  ),
+                );
               },
             ),
             _buildMenuTile(title: "Change password", onTap: () {}),

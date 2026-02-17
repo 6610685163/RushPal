@@ -24,7 +24,7 @@ class RegisterScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              // Header Text: Register to get started!
+              // Header Text
               Text(
                 "Register\nto get started!",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -83,20 +83,35 @@ class RegisterScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Social Buttons (เพิ่ม Google เข้ามาให้แล้ว)
+              // Social Buttons (Google ขึ้นก่อน)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // 1. Google Button
                   _buildSocialButton(
-                    icon: Icons.facebook,
-                    color: const Color(0xFF1877F2), // Facebook Blue
+                    child: Image.asset(
+                      'assets/images/google.png', // ⚠️ ต้องมีไฟล์รูปนี้
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.g_mobiledata,
+                        size: 40,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    color: Colors.white,
                     onTap: () {},
                   ),
-                  const SizedBox(width: 20), // ระยะห่างระหว่างปุ่ม
+
+                  const SizedBox(width: 20),
+
+                  // 2. Facebook Button
                   _buildSocialButton(
-                    icon: Icons.g_mobiledata, // Google Icon
-                    color: Colors.grey.shade200,
-                    iconColor: Colors.black,
+                    child: const Icon(
+                      Icons.facebook,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                    color: const Color(0xFF1877F2),
                     onTap: () {},
                   ),
                 ],
@@ -162,22 +177,21 @@ class RegisterScreen extends StatelessWidget {
   }
 
   Widget _buildSocialButton({
-    required IconData icon,
+    required Widget child,
     required Color color,
-    Color iconColor = Colors.white,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 100,
+        width: 100, // ในหน้า Register เดิมกำหนดไว้ 100
         height: 50,
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFE8ECF4)),
         ),
-        child: Icon(icon, color: iconColor, size: 30),
+        child: Center(child: child),
       ),
     );
   }
