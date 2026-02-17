@@ -3,6 +3,7 @@ import 'package:o3d/o3d.dart';
 import '../theme/app_theme.dart';
 
 class MarketScreen extends StatefulWidget {
+  const MarketScreen({super.key});
   @override
   _MarketScreenState createState() => _MarketScreenState();
 }

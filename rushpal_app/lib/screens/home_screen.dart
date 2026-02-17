@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:o3d/o3d.dart';
-import 'package:rushpal/theme/app_theme.dart'; 
-import 'market_screen.dart';
-import 'settings_screen.dart'; 
+import 'package:rushpal/theme/app_theme.dart';
+import 'settings_screen.dart';
+import 'profile_screen.dart';
+import 'start_run_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             height: MediaQuery.of(context).size.height * 0.4,
             decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient, // ดึงจาก AppTheme ที่แก้แล้ว
+              gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
             ),
           ),
@@ -106,9 +107,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       // ปุ่ม START Gradient
                       _buildStartButton(),
-                      const SizedBox(height: 25),
-                      // Nav Bar
-                      _buildCustomBottomBar(context),
+
+                      // ❌ ลบ _buildCustomBottomBar() ออกจากตรงนี้
+                      // เพราะ MainScreen เป็นคนจัดการแสดง Navbar ให้แล้ว
                     ],
                   ),
                 ),
@@ -131,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 200,
             height: 60,
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient, // ใช้ Gradient
+              gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
@@ -145,7 +146,14 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(30),
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const StartRunScreen(),
+                    ),
+                  );
+                },
                 child: const Center(
                   child: Text(
                     "START",
@@ -184,38 +192,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCustomBottomBar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(Icons.home_rounded, isActive: true),
-          GestureDetector(
-            onTap: () {
-              // ใส่โค้ด Navigation ไปหน้า Market
-              // Navigator.push(context, MaterialPageRoute(builder: (c) => MarketScreen()));
-            },
-            child: _buildNavItem(Icons.storefront_rounded),
-          ),
-          _buildNavItem(Icons.bar_chart_rounded),
-          _buildNavItem(Icons.group_rounded),
-        ],
-      ),
-    );
-  }
-
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -234,102 +210,116 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Row(
           children: [
-            // Avatar
-            Container(
-              padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppTheme.primaryGradient,
-              ),
-              child: const CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: AppTheme.primaryRed, size: 28),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // ข้อมูล Player (Name, Level, Money)
+            // ครอบ GestureDetector เพื่อไปหน้า Profile
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // แถวที่ 1: ชื่อ + Level
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Player Name",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (c) => const ProfileScreen()),
+                  );
+                },
+                child: Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppTheme.primaryGradient,
+                      ),
+                      child: const CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.person,
+                          color: AppTheme.primaryRed,
+                          size: 28,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          "Lv. 99",
-                          style: TextStyle(
-                            color: AppTheme.primaryRed,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // แถวที่ 2: หลอด XP
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: const LinearProgressIndicator(
-                      value: 0.7,
-                      minHeight: 6,
-                      backgroundColor: Color(0xFFEEEEEE),
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                     ),
-                  ),
-                  const SizedBox(height: 6),
+                    const SizedBox(width: 12),
 
-                  // แถวที่ 3: เงิน (Money)
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.monetization_on_rounded,
-                        size: 16,
-                        color: Colors.amber,
+                    // ข้อมูล Player
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                "Player Name",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryRed.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  "Lv. 99",
+                                  style: TextStyle(
+                                    color: AppTheme.primaryRed,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: const LinearProgressIndicator(
+                              value: 0.7,
+                              minHeight: 4,
+                              backgroundColor: Color(0xFFEEEEEE),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.orange,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.monetization_on_rounded,
+                                size: 14,
+                                color: Colors.amber,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "1,000 G",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        "1,000 G",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 15),
+            const SizedBox(width: 10),
 
-            // ปุ่ม Setting หกเหลี่ยม
+            // ปุ่ม Setting
             GestureDetector(
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (c) => const SettingsScreen(),
-                ), // แก้ชื่อ Class เป็น SettingsScreen (มี s)
+                MaterialPageRoute(builder: (c) => const SettingsScreen()),
               ),
               child: Container(
                 padding: const EdgeInsets.all(8),
@@ -368,24 +358,6 @@ class _HomeScreenState extends State<HomeScreen> {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, {bool isActive = false}) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.all(10),
-      decoration: isActive
-          ? BoxDecoration(
-              color: AppTheme.primaryRed.withOpacity(0.1),
-              shape: BoxShape.circle,
-            )
-          : null,
-      child: Icon(
-        icon,
-        size: 26,
-        color: isActive ? AppTheme.primaryRed : Colors.grey[400],
       ),
     );
   }

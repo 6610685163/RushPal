@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/register_screen.dart';
-import 'package:rushpal/screens/home_screen.dart'; // สำหรับกด Login แล้วไปหน้า Home
+import 'package:rushpal/screens/main_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -57,10 +57,11 @@ class LoginScreen extends StatelessWidget {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                    // ตัวอย่างการกด Login แล้วไปหน้า Home
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => HomeScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const MainScreen(),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -92,21 +93,36 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Social Buttons (Facebook, Google)
+              // Social Buttons (Google ขึ้นก่อน)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // 1. Google Button (ใช้รูปภาพจริง)
                   _buildSocialButton(
-                    icon: Icons.facebook,
-                    color: const Color(0xFF1877F2), // Facebook Blue
+                    // ⚠️ อย่าลืมเอารูป google.png ไปใส่ใน assets/images/ นะครับ
+                    child: Image.asset(
+                      'assets/images/google.png',
+                      height: 24, // ขนาดโลโก้
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.g_mobiledata,
+                        size: 40,
+                        color: Colors.blue,
+                      ), // Fallback ถ้าหารูปไม่เจอ
+                    ),
+                    color: Colors.white,
                     onTap: () {},
                   ),
+
                   const SizedBox(width: 20),
+
+                  // 2. Facebook Button
                   _buildSocialButton(
-                    icon: Icons
-                        .g_mobiledata, // ใช้ icon g_mobiledata หรือหา icon Google อื่นๆ
-                    color: Colors.grey.shade200,
-                    iconColor: Colors.black,
+                    child: const Icon(
+                      Icons.facebook,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                    color: const Color(0xFF1877F2), // Facebook Blue
                     onTap: () {},
                   ),
                 ],
@@ -134,7 +150,7 @@ class LoginScreen extends StatelessWidget {
                     child: const Text(
                       "Register Now",
                       style: TextStyle(
-                        color: Colors.cyan, // สีฟ้าตามภาพ PDF
+                        color: Colors.cyan,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -151,9 +167,9 @@ class LoginScreen extends StatelessWidget {
   Widget _buildTextField({required String hintText, bool isPassword = false}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F9), // สีเทาอ่อนๆ พื้นหลัง input
+        color: const Color(0xFFF7F8F9),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8ECF4)), // เส้นขอบบางๆ
+        border: Border.all(color: const Color(0xFFE8ECF4)),
       ),
       child: TextField(
         obscureText: isPassword,
@@ -170,23 +186,23 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
+  // ปรับแก้ให้รับ Widget child แทน IconData เพื่อใส่ Image ได้
   Widget _buildSocialButton({
-    required IconData icon,
+    required Widget child, // รับ Widget ข้างใน (รูป หรือ ไอคอน)
     required Color color,
-    Color iconColor = Colors.white,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 80, // ปรับขนาดตามความเหมาะสม
+        width: 80,
         height: 50,
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFE8ECF4)),
         ),
-        child: Icon(icon, color: iconColor, size: 30),
+        child: Center(child: child), // จัดกึ่งกลาง
       ),
     );
   }
