@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
-import 'screens/home_screen.dart';
+import 'screens/login_screen.dart'; // import login screen
 
 void main() {
   runApp(RushpalApp());
@@ -13,7 +13,7 @@ class RushpalApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Rushpal',
       theme: AppTheme.theme,
-      home: HomeScreen(),
+      home: const LoginScreen(), // เปลี่ยนจาก HomeScreen() เป็น LoginScreen()
     );
   }
 }

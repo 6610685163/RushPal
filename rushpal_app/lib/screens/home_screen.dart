@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:o3d/o3d.dart';
-import '../theme/app_theme.dart';
+import 'package:rushpal/theme/app_theme.dart'; 
 import 'market_screen.dart';
+import 'settings_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // O3DController _controller = O3DController(); // เวอร์ชั่นใหม่อาจจะไม่ต้องใช้ Controller ถ้าแค่โชว์เฉยๆ แต่ถ้าใช้ต้องมั่นใจว่า o3d รองรับ
   final O3DController _controller = O3DController();
 
   @override
@@ -17,11 +21,11 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 1. พื้นหลังสีแดงด้านบน
+          // 1. พื้นหลัง Gradient ด้านบน
           Container(
             height: MediaQuery.of(context).size.height * 0.4,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
+            decoration: const BoxDecoration(
+              gradient: AppTheme.primaryGradient, // ดึงจาก AppTheme ที่แก้แล้ว
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
             ),
           ),
@@ -31,41 +35,38 @@ class _HomeScreenState extends State<HomeScreen> {
             bottom: false,
             child: Column(
               children: [
-                _buildHeader(),
-                SizedBox(height: 10),
+                _buildHeader(context),
+                const SizedBox(height: 10),
 
-                // --- MAIN CHARACTER CARD (การ์ดตัวละคร) ---
+                // --- Character Card ---
                 Expanded(
                   child: Container(
-                    margin: EdgeInsets.symmetric(horizontal: 20),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(40),
+                      borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 30,
+                          offset: const Offset(0, 15),
                         ),
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(40),
+                      borderRadius: BorderRadius.circular(30),
                       child: Stack(
                         children: [
-                          // ✅ A. Background Image (แก้ให้เต็มพื้นที่การ์ด)
                           Positioned.fill(
                             child: Image.asset(
                               'assets/images/home_bg.png',
-                              fit: BoxFit.cover, // ให้รูปเต็มกรอบ
+                              fit: BoxFit.cover,
                               errorBuilder: (c, e, s) =>
                                   Container(color: Colors.grey[200]),
                             ),
                           ),
-
-                          // B. Character Model (Guy)
                           Positioned(
-                            bottom: 20, // ปรับระดับเท้า
+                            bottom: 20,
                             left: 0,
                             right: 0,
                             top: 0,
@@ -75,12 +76,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               autoPlay: true,
                               autoRotate: false,
                               cameraControls: false,
-                              animationName: 'mixamo.com',
+                              animationName:
+                                  'mixamo.com', // ตรวจสอบชื่อ animation ในไฟล์ glb ว่าตรงไหม
                               backgroundColor: Colors.transparent,
                             ),
                           ),
-
-                          // C. UI Overlays (Badge & Share)
+                          // Badge Overlay
                           Positioned(
                             top: 20,
                             left: 20,
@@ -90,33 +91,23 @@ class _HomeScreenState extends State<HomeScreen> {
                               Colors.orange,
                             ),
                           ),
-                          Positioned(
-                            bottom: 20,
-                            right: 20,
-                            child: Icon(
-                              Icons.share,
-                              color: Colors.white,
-                              size: 30,
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ),
                 ),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 25),
 
-                // --- ส่วนควบคุมด้านล่าง (START + BAR) ---
+                // --- Control Area ---
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+                  padding: const EdgeInsets.fromLTRB(25, 0, 25, 30),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ✅ 1. ปุ่ม START (ตรงกลาง) + ปุ่ม Party (เล็ก)
-                      _buildStartButtonArea(),
-                      SizedBox(height: 20),
-                      // ✅ 2. Custom Navigation Bar (แคปซูลอันเดียว)
+                      // ปุ่ม START Gradient
+                      _buildStartButton(),
+                      const SizedBox(height: 25),
+                      // Nav Bar
                       _buildCustomBottomBar(context),
                     ],
                   ),
@@ -129,52 +120,63 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStartButtonArea() {
-    return Container(
+  Widget _buildStartButton() {
+    return SizedBox(
       height: 70,
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // ปุ่ม START อยู่ตรงกลางจริงๆ
           Container(
-            width: 180, // ปรับความกว้างให้พอดีตามรูป
+            width: 200,
             height: 60,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
+              gradient: AppTheme.primaryGradient, // ใช้ Gradient
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.primaryRed.withOpacity(0.4),
-                  blurRadius: 10,
-                  offset: Offset(0, 5),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
-            child: Center(
-              child: Text(
-                "START",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(30),
+                onTap: () {},
+                child: const Center(
+                  child: Text(
+                    "START",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-          // ปุ่ม Party เล็กๆ อยู่ด้านขวา
+          // ปุ่ม Party เล็กๆ
           Positioned(
-            right: 10,
+            right: 15,
             child: Container(
-              width: 55,
-              height: 55,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                color: Color(0xFFE0F7FA),
+                color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.cyan, width: 2),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 10),
+                ],
               ),
-              child: Icon(Icons.groups_outlined, color: Colors.cyan, size: 30),
+              child: const Icon(
+                Icons.groups_outlined,
+                color: AppTheme.primaryRed,
+              ),
             ),
           ),
         ],
@@ -184,15 +186,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCustomBottomBar(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(35),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: Offset(0, 5),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -201,10 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildNavItem(Icons.home_rounded, isActive: true),
           GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (c) => MarketScreen()),
-            ),
+            onTap: () {
+              // ใส่โค้ด Navigation ไปหน้า Market
+              // Navigator.push(context, MaterialPageRoute(builder: (c) => MarketScreen()));
+            },
             child: _buildNavItem(Icons.storefront_rounded),
           ),
           _buildNavItem(Icons.bar_chart_rounded),
@@ -214,72 +216,104 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
-        padding: EdgeInsets.all(5),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppTheme.primaryRed,
-              child: Icon(Icons.person, color: Colors.white, size: 30),
+            // Avatar
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppTheme.primaryGradient,
+              ),
+              child: const CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: AppTheme.primaryRed, size: 28),
+              ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
+
+            // ข้อมูล Player (Name, Level, Money)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // แถวที่ 1: ชื่อ + Level
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
+                      const Text(
                         "Player Name",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                      Text(
-                        "Lv. 99",
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          "Lv. 99",
+                          style: TextStyle(
+                            color: AppTheme.primaryRed,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 6),
+
+                  // แถวที่ 2: หลอด XP
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(5),
-                    child: LinearProgressIndicator(
+                    borderRadius: BorderRadius.circular(4),
+                    child: const LinearProgressIndicator(
                       value: 0.7,
                       minHeight: 6,
-                      backgroundColor: Colors.grey[200],
+                      backgroundColor: Color(0xFFEEEEEE),
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                     ),
                   ),
-                  SizedBox(height: 4),
-                  Row(
+                  const SizedBox(height: 6),
+
+                  // แถวที่ 3: เงิน (Money)
+                  const Row(
                     children: [
                       Icon(
-                        Icons.monetization_on_outlined,
-                        size: 14,
-                        color: Colors.black,
+                        Icons.monetization_on_rounded,
+                        size: 16,
+                        color: Colors.amber,
                       ),
                       SizedBox(width: 4),
                       Text(
-                        "1000",
+                        "1,000 G",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
+                          color: Colors.black87,
                         ),
                       ),
                     ],
@@ -287,9 +321,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            SizedBox(width: 12),
-            Icon(Icons.hexagon_outlined, size: 32, color: Colors.black87),
-            SizedBox(width: 8),
+            const SizedBox(width: 15),
+
+            // ปุ่ม Setting หกเหลี่ยม
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (c) => const SettingsScreen(),
+                ), // แก้ชื่อ Class เป็น SettingsScreen (มี s)
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: const Icon(
+                  Icons.hexagon_outlined,
+                  color: Colors.black87,
+                  size: 28,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -298,26 +353,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBadge(String text, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 20),
-          SizedBox(width: 5),
-          Text(text, style: TextStyle(fontWeight: FontWeight.bold)),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildNavItem(IconData icon, {bool isActive = false}) {
-    return Container(
-      padding: EdgeInsets.all(12),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.all(10),
       decoration: isActive
           ? BoxDecoration(
               color: AppTheme.primaryRed.withOpacity(0.1),
@@ -326,8 +384,8 @@ class _HomeScreenState extends State<HomeScreen> {
           : null,
       child: Icon(
         icon,
-        size: 28,
-        color: isActive ? AppTheme.primaryRed : Colors.grey[700],
+        size: 26,
+        color: isActive ? AppTheme.primaryRed : Colors.grey[400],
       ),
     );
   }
