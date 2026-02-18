@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:o3d/o3d.dart';
 import 'package:rushpal/theme/app_theme.dart';
+import 'market_screen.dart';
 import 'settings_screen.dart';
-import 'profile_screen.dart';
-import 'start_run_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+// สมมติว่ามีหน้านี้อยู่เพื่อให้ Navigator ไม่ Error
+class StartRunScreen extends StatelessWidget {
+  const StartRunScreen({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Start Run")));
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,8 +21,34 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // O3DController _controller = O3DController(); // เวอร์ชั่นใหม่อาจจะไม่ต้องใช้ Controller ถ้าแค่โชว์เฉยๆ แต่ถ้าใช้ต้องมั่นใจว่า o3d รองรับ
   final O3DController _controller = O3DController();
+  String username = "Loading...";
+
+  @override
+  void initState() {
+    super.initState();
+    loadUserData();
+  }
+
+  Future<void> loadUserData() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          username = doc['username'] ?? "User";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        username = "Guest";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,19 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Container(color: Colors.grey[200]),
                             ),
                           ),
-                          Positioned(
-                            bottom: 20,
-                            left: 0,
-                            right: 0,
-                            top: 0,
+                          Positioned.fill(
                             child: O3D(
                               src: 'assets/models/guy.glb',
                               controller: _controller,
                               autoPlay: true,
                               autoRotate: false,
                               cameraControls: false,
-                              animationName:
-                                  'mixamo.com', // ตรวจสอบชื่อ animation ในไฟล์ glb ว่าตรงไหม
+                              animationName: 'mixamo.com',
                               backgroundColor: Colors.transparent,
                             ),
                           ),
@@ -105,11 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.fromLTRB(25, 0, 25, 30),
                   child: Column(
                     children: [
-                      // ปุ่ม START Gradient
                       _buildStartButton(),
-
-                      // ❌ ลบ _buildCustomBottomBar() ออกจากตรงนี้
-                      // เพราะ MainScreen เป็นคนจัดการแสดง Navbar ให้แล้ว
                     ],
                   ),
                 ),
@@ -168,16 +193,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          // ปุ่ม Party เล็กๆ
           Positioned(
             right: 15,
             child: Container(
               width: 50,
               height: 50,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(color: Colors.black12, blurRadius: 10),
                 ],
               ),
@@ -196,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -210,111 +234,71 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Row(
           children: [
-            // ครอบ GestureDetector เพื่อไปหน้า Profile
+            // ข้อมูล Player
             Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (c) => const ProfileScreen()),
-                  );
-                },
-                child: Row(
-                  children: [
-                    // Avatar
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppTheme.primaryGradient,
-                      ),
-                      child: const CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Colors.white,
-                        child: Icon(
-                          Icons.person,
-                          color: AppTheme.primaryRed,
-                          size: 28,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        username,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    // ข้อมูล Player
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Text(
-                                "Player Name",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryRed.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  "Lv. 99",
-                                  style: TextStyle(
-                                    color: AppTheme.primaryRed,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          "Lv. 99",
+                          style: TextStyle(
+                            color: AppTheme.primaryRed,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: const LinearProgressIndicator(
-                              value: 0.7,
-                              minHeight: 4,
-                              backgroundColor: Color(0xFFEEEEEE),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.orange,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.monetization_on_rounded,
-                                size: 14,
-                                color: Colors.amber,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                "1,000 G",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: const LinearProgressIndicator(
+                      value: 0.7,
+                      minHeight: 6,
+                      backgroundColor: Color(0xFFEEEEEE),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Row(
+                    children: [
+                      Icon(Icons.monetization_on_rounded, size: 14, color: Colors.amber),
+                      SizedBox(width: 4),
+                      Text(
+                        "1,000 G",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 10),
-
+            const SizedBox(width: 15),
             // ปุ่ม Setting
             GestureDetector(
               onTap: () => Navigator.push(
@@ -350,6 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(width: 4),

@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class RegisterScreen extends StatelessWidget {
+
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,13 +48,13 @@ class RegisterScreen extends StatelessWidget {
               const SizedBox(height: 40),
 
               // Inputs
-              _buildTextField(hintText: "Username"),
+              _buildTextField(hintText: "Username",controller: usernameController,),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Email"),
+              _buildTextField(hintText: "Email",controller: emailController,),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Password", isPassword: true),
+              _buildTextField(hintText: "Password", controller: passwordController, isPassword: true),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Confirm password", isPassword: true),
+              _buildTextField(hintText: "Confirm password",controller: confirmController, isPassword: true),
 
               const SizedBox(height: 30),
 
@@ -51,9 +63,37 @@ class RegisterScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // ทำงานเมื่อกด Register
-                  },
+                  onPressed: ()async {
+                    if (passwordController.text != confirmController.text) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Passwords do not match")),
+                      );
+                      return;
+                    }
+
+                    try {
+                      UserCredential userCredential =
+                          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                        email: emailController.text.trim(),
+                        password: passwordController.text.trim(),
+                      );
+
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(userCredential.user!.uid)
+                          .set({
+      'username': usernameController.text.trim(),
+      'email': emailController.text.trim(),
+      'created_at': Timestamp.now(),
+    });
+
+    Navigator.pop(context); // กลับไปหน้า login
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString())),
+    );
+  }
+},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryRed,
                     shape: RoundedRectangleBorder(
@@ -154,7 +194,7 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField({required String hintText, bool isPassword = false}) {
+  Widget _buildTextField({required String hintText, required TextEditingController controller, bool isPassword = false}) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8F9),
@@ -162,6 +202,7 @@ class RegisterScreen extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE8ECF4)),
       ),
       child: TextField(
+        controller: controller,
         obscureText: isPassword,
         decoration: InputDecoration(
           border: InputBorder.none,
