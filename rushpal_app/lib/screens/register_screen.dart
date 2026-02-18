@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/login_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // เพิ่ม
-import 'package:cloud_firestore/cloud_firestore.dart'; // เพิ่ม
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,7 +13,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // เพิ่ม Controller
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -146,6 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // 1. Google Button
                   _buildSocialButton(
                     child: Image.asset(
                       'assets/images/google.png',
@@ -246,7 +247,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 100,
+        width: 100, // ในหน้า Register เดิมกำหนดไว้ 100
         height: 50,
         decoration: BoxDecoration(
           color: color,

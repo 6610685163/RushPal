@@ -224,6 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // ปรับแก้ให้รับ Widget child แทน IconData เพื่อใส่ Image ได้
   Widget _buildSocialButton({
     required Widget child,
     required Color color,
