@@ -17,15 +17,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmController = TextEditingController();
+
+  // ฟังก์ชัน Register
+  Future<void> _register() async {
+    if (passwordController.text != confirmController.text) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+      return;
+    }
+
+    try {
+      // 1. สร้าง User ใน Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+
+      // 2. บันทึกข้อมูลลง Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'username': usernameController.text.trim(),
+            'email': emailController.text.trim(),
+            'created_at': Timestamp.now(),
+          });
+
+      if (mounted) {
+        Navigator.pop(context); // กลับไปหน้า Login
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.primaryRed, // UI สีแดง
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -35,26 +73,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
-              // Header Text
+              const SizedBox(height: 10),
               Text(
-                "Register\nto get started!",
+                "Join\nRushPal",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                   height: 1.2,
+                  fontSize: 36,
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 10),
+              const Text(
+                "Create an account to get started!",
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              const SizedBox(height: 30),
 
-              // Inputs
-              _buildTextField(hintText: "Username",controller: usernameController,),
+              // Inputs (ใส่ Controller)
+              _buildTextField(
+                hintText: "Username",
+                controller: usernameController,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Email",controller: emailController,),
+              _buildTextField(hintText: "Email", controller: emailController),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Password", controller: passwordController, isPassword: true),
+              _buildTextField(
+                hintText: "Password",
+                isPassword: true,
+                controller: passwordController,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Confirm password",controller: confirmController, isPassword: true),
+              _buildTextField(
+                hintText: "Confirm password",
+                isPassword: true,
+                controller: confirmController,
+              ),
 
               const SizedBox(height: 30),
 
@@ -63,74 +117,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: ()async {
-                    if (passwordController.text != confirmController.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Passwords do not match")),
-                      );
-                      return;
-                    }
-
-                    try {
-                      UserCredential userCredential =
-                          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                        email: emailController.text.trim(),
-                        password: passwordController.text.trim(),
-                      );
-
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(userCredential.user!.uid)
-                          .set({
-      'username': usernameController.text.trim(),
-      'email': emailController.text.trim(),
-      'created_at': Timestamp.now(),
-    });
-
-    Navigator.pop(context); // กลับไปหน้า login
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString())),
-    );
-  }
-},
+                  onPressed: _register, // เรียกฟังก์ชัน register
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primaryRed,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    elevation: 0,
+                    elevation: 2,
                   ),
                   child: const Text(
                     "Register",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
 
               const SizedBox(height: 30),
 
-              // Or Register with
               const Center(
                 child: Text(
                   "Or Register with",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.white70),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Social Buttons (Google ขึ้นก่อน)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // 1. Google Button
                   _buildSocialButton(
                     child: Image.asset(
-                      'assets/images/google.png', // ⚠️ ต้องมีไฟล์รูปนี้
+                      'assets/images/google.png',
                       height: 24,
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.g_mobiledata,
@@ -141,10 +160,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: Colors.white,
                     onTap: () {},
                   ),
-
                   const SizedBox(width: 20),
-
-                  // 2. Facebook Button
                   _buildSocialButton(
                     child: const Icon(
                       Icons.facebook,
@@ -159,13 +175,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 40),
 
-              // Login Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     "Already have an account? ",
-                    style: TextStyle(color: Colors.black),
+                    style: TextStyle(color: Colors.white),
                   ),
                   GestureDetector(
                     onTap: () {
@@ -179,8 +194,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: const Text(
                       "Login Now",
                       style: TextStyle(
-                        color: Colors.cyan,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Colors.white,
                       ),
                     ),
                   ),
@@ -194,15 +211,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildTextField({required String hintText, required TextEditingController controller, bool isPassword = false}) {
+  // ปรับแก้รับ Controller
+  Widget _buildTextField({
+    required String hintText,
+    bool isPassword = false,
+    required TextEditingController controller,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F9),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8ECF4)),
+        border: Border.all(color: Colors.transparent),
       ),
       child: TextField(
-        controller: controller,
+        controller: controller, // ผูก Controller
         obscureText: isPassword,
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -230,7 +252,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE8ECF4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Center(child: child),
       ),
