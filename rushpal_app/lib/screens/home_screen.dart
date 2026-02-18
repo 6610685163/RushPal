@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:o3d/o3d.dart';
-import 'package:rushpal/theme/app_theme.dart'; 
+import 'package:rushpal/theme/app_theme.dart';
 import 'market_screen.dart';
-import 'settings_screen.dart'; 
+import 'settings_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +17,26 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // O3DController _controller = O3DController(); // เวอร์ชั่นใหม่อาจจะไม่ต้องใช้ Controller ถ้าแค่โชว์เฉยๆ แต่ถ้าใช้ต้องมั่นใจว่า o3d รองรับ
   final O3DController _controller = O3DController();
+  String username = "Loading...";
+
+  @override
+  void initState() {
+    super.initState();
+    loadUserData();
+  }
+
+  Future<void> loadUserData() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+
+    setState(() {
+      username = doc['username'];
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -258,8 +281,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Player Name",
+                        Text(
+                        username,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
