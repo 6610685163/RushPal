@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  firebase_core:
+  firebase_auth: 
+  cloud_firestore: 
   google_fonts: ^6.1.0
   # สำหรับดึงพิกัด GPS
   geolocator: ^11.0.0

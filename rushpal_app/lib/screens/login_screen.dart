@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/register_screen.dart';
-import 'package:rushpal/screens/main_screen.dart';
+import 'package:rushpal/screens/home_screen.dart'; // สำหรับกด Login แล้วไปหน้า Home
+import 'package:firebase_auth/firebase_auth.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +38,16 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 40),
 
               // Input: Email
-              _buildTextField(hintText: "Enter your email"),
+              _buildTextField(
+                hintText: "Enter your email",
+                controller: emailController,
+              ),
               const SizedBox(height: 16),
 
               // Input: Password
               _buildTextField(
                 hintText: "Enter your password",
+                controller: passwordController,
                 isPassword: true,
               ),
 
@@ -56,13 +69,24 @@ class LoginScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MainScreen(),
-                      ),
-                    );
+                  onPressed: () async {
+                    try {
+                      await FirebaseAuth.instance.signInWithEmailAndPassword(
+                        email: emailController.text.trim(),
+                        password: passwordController.text.trim(),
+                      );
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomeScreen(),
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text("Login failed")));
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryRed,
@@ -164,7 +188,11 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField({required String hintText, bool isPassword = false}) {
+  Widget _buildTextField({
+    required String hintText,
+    required TextEditingController controller,
+    bool isPassword = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8F9),
@@ -172,6 +200,7 @@ class LoginScreen extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE8ECF4)),
       ),
       child: TextField(
+        controller: controller,
         obscureText: isPassword,
         decoration: InputDecoration(
           border: InputBorder.none,
