@@ -7,28 +7,26 @@ import 'package:rushpal/screens/friend_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
-
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-
-  // ✅ แก้ไขตรงนี้: ลบ Scaffold() ว่างๆ ออก ให้เหลือแค่ 4 หน้าตามปุ่ม
   final List<Widget> _pages = [
     const HomeScreen(), // index 0
     const MarketScreen(), // index 1
-    const StatsScreen(), // index 2 (จะตรงกับปุ่ม bar_chart)
-    const FriendScreen(), // index 3 (จะตรงกับปุ่ม group)
+    const StatsScreen(), // index 2
+    const FriendScreen(), // index 3
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // ตั้งค่านี้เพื่อให้เนื้อหา (สีแดงของ Home) ยืดไปอยู่หลังแถบเมนู
+      extendBody: true,
       backgroundColor: Colors.white,
       body: _pages[_selectedIndex],
-
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(25, 0, 25, 30),
         child: _buildCustomBottomBar(),
@@ -44,7 +42,9 @@ class _MainScreenState extends State<MainScreen> {
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(
+              0.1,
+            ), // ปรับเงาให้ชัดขึ้น
             blurRadius: 20,
             offset: const Offset(0, 5),
           ),
@@ -54,32 +54,25 @@ class _MainScreenState extends State<MainScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildNavItem(Icons.home_rounded, 0),
-          _buildNavItem(Icons.storefront_rounded, 1),
-          _buildNavItem(
-            Icons.bar_chart_rounded,
-            2,
-          ), // ปุ่มนี้จะเปิด StatsScreen แล้ว
-          _buildNavItem(
-            Icons.group_rounded,
-            3,
-          ), // ปุ่มนี้จะเปิด FriendScreen แล้ว
+          _buildNavItem(Icons.shopping_bag_outlined, 1),
+          _buildNavItem(Icons.bar_chart_rounded, 2),
+          _buildNavItem(Icons.groups_outlined, 3),
         ],
       ),
     );
   }
 
   Widget _buildNavItem(IconData icon, int index) {
-    bool isActive = _selectedIndex == index;
+    bool isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedIndex = index;
         });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         padding: const EdgeInsets.all(10),
-        decoration: isActive
+        decoration: isSelected
             ? BoxDecoration(
                 color: AppTheme.primaryRed.withOpacity(0.1),
                 shape: BoxShape.circle,
@@ -87,8 +80,8 @@ class _MainScreenState extends State<MainScreen> {
             : null,
         child: Icon(
           icon,
-          size: 26,
-          color: isActive ? AppTheme.primaryRed : Colors.grey[400],
+          color: isSelected ? AppTheme.primaryRed : Colors.grey,
+          size: 28,
         ),
       ),
     );

@@ -5,41 +5,50 @@
 *.swp
 .DS_Store
 .atom/
-.build/
 .buildlog/
 .history
 .svn/
-.swiftpm/
-migrate_working_dir/
 
-# IntelliJ related
+# IntelliJ / Android Studio
 *.iml
-*.ipr
-*.iws
 .idea/
+.run/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Visual Studio Code
+.vscode/
+*.code-workspace
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Flutter/Dart/Pub (ตัวจัดการแพ็กเกจและไฟล์ Build)
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
 /build/
-/coverage/
 
-# Symbolication related
-app.*.symbols
+# Android (ไฟล์ขยะของ Android และ Config เครื่อง)
+android/**/*.gradle
+android/**/gradle-wrapper.jar
+android/.gradle
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/**/generated/
+android/**/outputs/
+android/**/tmp/
+# Keystore files
+*.jks
+*.keystore
+*.key
+key.properties
 
-# Obfuscation related
-app.*.map.json
+# Android Firebase Config
+android/app/google-services.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# iOS Firebase Config
+ios/Runner/GoogleService-Info.plist
+
+# Dart Firebase Config (ถ้าต้องการซ่อน API Key)
+lib/firebase_options.dart

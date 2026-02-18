@@ -13,17 +13,17 @@ class _MarketScreenState extends State<MarketScreen>
   late TabController _tabController;
   final O3DController _controller = O3DController();
 
-  // ✅ 1. แก้ไข: ตัวแปรเก็บ path ของโมเดลปัจจุบัน (เริ่มที่ guy.glb)
+  // ตัวแปรเก็บ path ของโมเดลปัจจุบัน (เริ่มที่ guy.glb)
   String currentModel = 'assets/models/guy.glb';
 
-  // ✅ 2. แก้ไข: ข้อมูลสินค้า ให้ชี้ไปที่ guy.glb ทั้งหมดก่อน (กัน Error)
+  // ข้อมูลสินค้า ให้ชี้ไปที่ guy.glb ทั้งหมดก่อน (กัน Error)
   final Map<String, List<Map<String, dynamic>>> marketItems = {
     'Head': [
       {
         'name': 'Basic Hair',
         'price': 0,
         'owned': true,
-        'model': 'assets/models/guy.glb', // แก้เป็น guy
+        'model': 'assets/models/guy.glb',
       },
       {
         'name': 'Cap',
@@ -44,7 +44,7 @@ class _MarketScreenState extends State<MarketScreen>
         'name': 'Adventurer',
         'price': 0,
         'owned': true,
-        'model': 'assets/models/guy.glb', // แก้เป็น guy
+        'model': 'assets/models/guy.glb',
       },
       {
         'name': 'Tracksuit',
@@ -132,7 +132,7 @@ class _MarketScreenState extends State<MarketScreen>
                   ),
                 ),
                 // ตัวโมเดล 3D
-                Container(
+                SizedBox(
                   width: double.infinity,
                   child: O3D(
                     key: ValueKey(

@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:o3d/o3d.dart';
 import 'package:rushpal/theme/app_theme.dart';
-import 'market_screen.dart';
 import 'settings_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-// สมมติว่ามีหน้านี้อยู่เพื่อให้ Navigator ไม่ Error
-class StartRunScreen extends StatelessWidget {
-  const StartRunScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Start Run")));
-}
+import 'profile_screen.dart';
+import 'start_run_screen.dart';
+import 'party_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,125 +46,138 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          // 1. พื้นหลัง Gradient ด้านบน
-          Container(
-            height: MediaQuery.of(context).size.height * 0.4,
-            decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-            ),
-          ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: AppTheme.primaryRed,
+        body: Stack(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  _buildHeader(context),
+                  const SizedBox(height: 10),
 
-          // 2. เนื้อหาหลัก
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                _buildHeader(context),
-                const SizedBox(height: 10),
-
-                // --- Character Card ---
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 30,
-                          offset: const Offset(0, 15),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: Image.asset(
-                              'assets/images/home_bg.png',
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) =>
-                                  Container(color: Colors.grey[200]),
-                            ),
-                          ),
-                          Positioned.fill(
-                            child: O3D(
-                              src: 'assets/models/guy.glb',
-                              controller: _controller,
-                              autoPlay: true,
-                              autoRotate: false,
-                              cameraControls: false,
-                              animationName: 'mixamo.com',
-                              backgroundColor: Colors.transparent,
-                            ),
-                          ),
-                          // Badge Overlay
-                          Positioned(
-                            top: 20,
-                            left: 20,
-                            child: _buildBadge(
-                              "Streak 5",
-                              Icons.local_fire_department,
-                              Colors.orange,
-                            ),
+                  // --- Character Card (Avatar) ---
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 30,
+                            offset: const Offset(0, 15),
                           ),
                         ],
                       ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Image.asset(
+                                'assets/images/home_bg.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) =>
+                                    Container(color: Colors.grey[200]),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 20,
+                              left: 0,
+                              right: 0,
+                              top: 0,
+                              child: O3D(
+                                src: 'assets/models/guy.glb',
+                                controller: _controller,
+                                autoPlay: true,
+                                autoRotate: false,
+                                cameraControls: false,
+                                animationName: 'mixamo.com',
+                                backgroundColor: Colors.transparent,
+                              ),
+                            ),
+                            Positioned(
+                              top: 20,
+                              left: 20,
+                              child: _buildBadge(
+                                "Streak 5",
+                                Icons.local_fire_department,
+                                Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 25),
-
-                // --- Control Area ---
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(25, 0, 25, 30),
-                  child: Column(
-                    children: [
-                      _buildStartButton(),
-                    ],
+                  // --- Control Area ---
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                    ), // ลด Padding เพื่อให้มีพื้นที่จัดวาง
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildStartButton(),
+                        const SizedBox(height: 120),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStartButton() {
+    // กำหนดขนาดความกว้างของปุ่ม Party และระยะห่าง เพื่อใช้คำนวณตัวถ่วงดุล
+    const double partyButtonSize = 50.0;
+    const double gapSize = 10.0;
+    const double totalSideOffset = partyButtonSize + gapSize;
+
     return SizedBox(
-      height: 70,
+      height: 90,
       width: double.infinity,
-      child: Stack(
-        alignment: Alignment.center,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center, // จัดกึ่งกลาง
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // 1. กล่องล่องหนด้านซ้าย (Invisible Spacer)
+          // ใส่ไว้เพื่อถ่วงน้ำหนักให้ปุ่ม START อยู่ตรงกลางหน้าจอเป๊ะๆ
+          const SizedBox(width: totalSideOffset),
+
+          // 2. ปุ่ม START (อยู่ตรงกลาง)
           Container(
-            width: 200,
-            height: 60,
+            width: 230,
+            height: 75,
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(30),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(40),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryRed.withOpacity(0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(40),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -183,31 +190,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text(
                     "START",
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
+                      color: AppTheme.primaryRed,
+                      fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
+                      letterSpacing: 2.0,
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          Positioned(
-            right: 15,
+
+          // 3. ระยะห่าง
+          const SizedBox(width: gapSize),
+
+          // 4. ปุ่ม Party
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PartyScreen()),
+              );
+            },
             child: Container(
-              width: 50,
-              height: 50,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 10),
-                ],
-              ),
+              width: partyButtonSize,
+              height: partyButtonSize,
+              color: Colors.transparent,
               child: const Icon(
-                Icons.groups_outlined,
-                color: AppTheme.primaryRed,
+                Icons.celebration,
+                color: Colors.white,
+                size: 34,
+                shadows: [
+                  Shadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
             ),
           ),
@@ -220,102 +239,139 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: const [
             BoxShadow(
               color: Colors.black12,
-              blurRadius: 10,
-              offset: Offset(0, 4),
+              blurRadius: 12,
+              offset: Offset(0, 6),
             ),
           ],
         ),
         child: Row(
           children: [
-            // ข้อมูล Player
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        username,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (c) => const ProfileScreen()),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppTheme.primaryGradient,
+                      ),
+                      child: const CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.person,
+                          color: AppTheme.primaryRed,
+                          size: 34,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          "Lv. 99",
-                          style: TextStyle(
-                            color: AppTheme.primaryRed,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: const LinearProgressIndicator(
-                      value: 0.7,
-                      minHeight: 6,
-                      backgroundColor: Color(0xFFEEEEEE),
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Row(
-                    children: [
-                      Icon(Icons.monetization_on_rounded, size: 14, color: Colors.amber),
-                      SizedBox(width: 4),
-                      Text(
-                        "1,000 G",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  "Player Name",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryRed.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  "Lv. 99",
+                                  style: TextStyle(
+                                    color: AppTheme.primaryRed,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: const LinearProgressIndicator(
+                              value: 0.7,
+                              minHeight: 8,
+                              backgroundColor: Color(0xFFEEEEEE),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.orange,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.monetization_on_rounded,
+                                size: 18,
+                                color: Colors.amber,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                "1,000 G",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 15),
-            // ปุ่ม Setting
+            const SizedBox(width: 12),
             GestureDetector(
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (c) => const SettingsScreen()),
               ),
               child: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey[300]!),
                 ),
                 child: const Icon(
                   Icons.hexagon_outlined,
                   color: Colors.black87,
-                  size: 28,
+                  size: 30,
                 ),
               ),
             ),
