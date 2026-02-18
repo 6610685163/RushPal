@@ -9,155 +9,168 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // 1. เปลี่ยนพื้นหลังเป็นสีแดง
+      backgroundColor: AppTheme.primaryRed,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              // Header Text: Welcome back!
-              Text(
-                "Welcome back!\nGlad to see you, Again!",
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Input: Email
-              _buildTextField(hintText: "Enter your email"),
-              const SizedBox(height: 16),
-
-              // Input: Password
-              _buildTextField(
-                hintText: "Enter your password",
-                isPassword: true,
-              ),
-
-              // Forgot Password?
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    "Forgot Password?",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Login Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MainScreen(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "Login",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Or Login with
-              const Center(
-                child: Text(
-                  "Or Login with",
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Social Buttons (Google ขึ้นก่อน)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 1. Google Button (ใช้รูปภาพจริง)
-                  _buildSocialButton(
-                    // ⚠️ อย่าลืมเอารูป google.png ไปใส่ใน assets/images/ นะครับ
-                    child: Image.asset(
-                      'assets/images/google.png',
-                      height: 24, // ขนาดโลโก้
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.g_mobiledata,
-                        size: 40,
-                        color: Colors.blue,
-                      ), // Fallback ถ้าหารูปไม่เจอ
-                    ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 20.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 2. Header Text
+                Text(
+                  "RushPal",
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    onTap: () {},
+                    fontSize: 48,
+                    letterSpacing: 1.5,
                   ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  "Run with your pal, anywhere.",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                const SizedBox(height: 50),
 
-                  const SizedBox(width: 20),
+                // Input: Email
+                _buildTextField(hintText: "Enter your email"),
+                const SizedBox(height: 16),
 
-                  // 2. Facebook Button
-                  _buildSocialButton(
-                    child: const Icon(
-                      Icons.facebook,
-                      color: Colors.white,
-                      size: 30,
+                // Input: Password
+                _buildTextField(
+                  hintText: "Enter your password",
+                  isPassword: true,
+                ),
+
+                // Forgot Password?
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {},
+                    child: const Text(
+                      "Forgot Password?",
+                      style: TextStyle(color: Colors.white),
                     ),
-                    color: const Color(0xFF1877F2), // Facebook Blue
-                    onTap: () {},
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 20),
 
-              const SizedBox(height: 50),
-
-              // Register Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Don't have an account? ",
-                    style: TextStyle(color: Colors.black),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
+                // Login Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const RegisterScreen(),
+                          builder: (context) => const MainScreen(),
                         ),
                       );
                     },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white, // พื้นปุ่มสีขาว
+                      foregroundColor: AppTheme.primaryRed, // ตัวหนังสือสีแดง
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 2,
+                    ),
                     child: const Text(
-                      "Register Now",
+                      "Login",
                       style: TextStyle(
-                        color: Colors.cyan,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ],
+                ),
+
+                const SizedBox(height: 40),
+
+                // Or Login with
+                const Center(
+                  child: Text(
+                    "Or Login with",
+                    style: TextStyle(
+                      color: Colors.white70,
+                    ), // ปรับสีจางลง
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Social Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildSocialButton(
+                      child: Image.asset(
+                        'assets/images/google.png',
+                        height: 24,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.g_mobiledata,
+                              size: 40,
+                              color: Colors.blue,
+                            ),
+                      ),
+                      color: Colors.white,
+                      onTap: () {},
+                    ),
+                    const SizedBox(width: 20),
+                    _buildSocialButton(
+                      child: const Icon(
+                        Icons.facebook,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                      color: const Color(0xFF1877F2),
+                      onTap: () {},
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 50),
+
+                // Register Link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Don't have an account? ",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Register Now",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          decoration:
+                              TextDecoration.underline,
+                          decorationColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -167,9 +180,9 @@ class LoginScreen extends StatelessWidget {
   Widget _buildTextField({required String hintText, bool isPassword = false}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F9),
+        color: Colors.white, // ช่องกรอกข้อมูล
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8ECF4)),
+        border: Border.all(color: Colors.transparent),
       ),
       child: TextField(
         obscureText: isPassword,
@@ -186,9 +199,8 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  // ปรับแก้ให้รับ Widget child แทน IconData เพื่อใส่ Image ได้
   Widget _buildSocialButton({
-    required Widget child, // รับ Widget ข้างใน (รูป หรือ ไอคอน)
+    required Widget child,
     required Color color,
     required VoidCallback onTap,
   }) {
@@ -200,9 +212,15 @@ class LoginScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE8ECF4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
-        child: Center(child: child), // จัดกึ่งกลาง
+        child: Center(child: child),
       ),
     );
   }

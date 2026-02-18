@@ -7,6 +7,8 @@ void main() {
 }
 
 class RushpalApp extends StatelessWidget {
+  const RushpalApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
