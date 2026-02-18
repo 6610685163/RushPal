@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
-import 'screens/login_screen.dart'; // import login screen
+import 'screens/login_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  // เพิ่มการ Initialize Firebase
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(RushpalApp());
 }
 
@@ -15,7 +21,7 @@ class RushpalApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Rushpal',
       theme: AppTheme.theme,
-      home: const LoginScreen(), // เปลี่ยนจาก HomeScreen() เป็น LoginScreen()
+      home: const LoginScreen(),
     );
   }
 }

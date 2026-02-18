@@ -1,23 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // เพิ่ม
+import 'package:cloud_firestore/cloud_firestore.dart'; // เพิ่ม
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  // เพิ่ม Controller
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmController = TextEditingController();
+
+  // ฟังก์ชัน Register
+  Future<void> _register() async {
+    if (passwordController.text != confirmController.text) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+      return;
+    }
+
+    try {
+      // 1. สร้าง User ใน Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+
+      // 2. บันทึกข้อมูลลง Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'username': usernameController.text.trim(),
+            'email': emailController.text.trim(),
+            'created_at': Timestamp.now(),
+          });
+
+      if (mounted) {
+        Navigator.pop(context); // กลับไปหน้า Login
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. เปลี่ยนพื้นหลังเป็นสีแดง
-      backgroundColor: AppTheme.primaryRed,
+      backgroundColor: AppTheme.primaryRed, // UI สีแดง
       appBar: AppBar(
-        backgroundColor: Colors.transparent, // โปร่งใส
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            color: Colors.white,
-          ), // ไอคอนสีขาว
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -28,12 +74,11 @@ class RegisterScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
-              // 2. Header Text: Join RushPal
               Text(
                 "Join\nRushPal",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.white, // สีขาว
+                  color: Colors.white,
                   height: 1.2,
                   fontSize: 36,
                 ),
@@ -45,28 +90,37 @@ class RegisterScreen extends StatelessWidget {
               ),
               const SizedBox(height: 30),
 
-              // Inputs (กล่องสีขาวเหมือนเดิม แต่พื้นหลังแดง)
-              _buildTextField(hintText: "Username"),
+              // Inputs (ใส่ Controller)
+              _buildTextField(
+                hintText: "Username",
+                controller: usernameController,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Email"),
+              _buildTextField(hintText: "Email", controller: emailController),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Password", isPassword: true),
+              _buildTextField(
+                hintText: "Password",
+                isPassword: true,
+                controller: passwordController,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Confirm password", isPassword: true),
+              _buildTextField(
+                hintText: "Confirm password",
+                isPassword: true,
+                controller: confirmController,
+              ),
 
               const SizedBox(height: 30),
 
-              // Register Button (ปุ่มขาว ตัวหนังสือแดง)
+              // Register Button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // ทำงานเมื่อกด Register
-                  },
+                  onPressed: _register, // เรียกฟังก์ชัน register
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white, // สีขาว
-                    foregroundColor: AppTheme.primaryRed, // สีแดง
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primaryRed,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -81,7 +135,6 @@ class RegisterScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // Or Register with
               const Center(
                 child: Text(
                   "Or Register with",
@@ -90,7 +143,6 @@ class RegisterScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Social Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -122,13 +174,12 @@ class RegisterScreen extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // Login Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     "Already have an account? ",
-                    style: TextStyle(color: Colors.white), // สีขาว
+                    style: TextStyle(color: Colors.white),
                   ),
                   GestureDetector(
                     onTap: () {
@@ -142,7 +193,7 @@ class RegisterScreen extends StatelessWidget {
                     child: const Text(
                       "Login Now",
                       style: TextStyle(
-                        color: Colors.white, // สีขาวตัวหนา
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                         decoration: TextDecoration.underline,
                         decorationColor: Colors.white,
@@ -159,14 +210,20 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField({required String hintText, bool isPassword = false}) {
+  // ปรับแก้รับ Controller
+  Widget _buildTextField({
+    required String hintText,
+    bool isPassword = false,
+    required TextEditingController controller,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white, // สีขาว
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.transparent),
       ),
       child: TextField(
+        controller: controller, // ผูก Controller
         obscureText: isPassword,
         decoration: InputDecoration(
           border: InputBorder.none,

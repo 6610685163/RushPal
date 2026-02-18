@@ -2,15 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/register_screen.dart';
 import 'package:rushpal/screens/main_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // เพิ่ม
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  // เพิ่ม Controller
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  // ฟังก์ชัน Login
+  Future<void> _login() async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Login failed: ${e.toString()}")));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. เปลี่ยนพื้นหลังเป็นสีแดง
-      backgroundColor: AppTheme.primaryRed,
+      backgroundColor: AppTheme.primaryRed, // ใช้ UI สีแดงของ front
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -22,7 +52,6 @@ class LoginScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 2. Header Text
                 Text(
                   "RushPal",
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -39,17 +68,20 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 50),
 
-                // Input: Email
-                _buildTextField(hintText: "Enter your email"),
+                // Input: Email (ใส่ Controller)
+                _buildTextField(
+                  hintText: "Enter your email",
+                  controller: emailController,
+                ),
                 const SizedBox(height: 16),
 
-                // Input: Password
+                // Input: Password (ใส่ Controller)
                 _buildTextField(
                   hintText: "Enter your password",
                   isPassword: true,
+                  controller: passwordController,
                 ),
 
-                // Forgot Password?
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -67,17 +99,10 @@ class LoginScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MainScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: _login, // เรียกใช้ฟังก์ชัน login
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white, // พื้นปุ่มสีขาว
-                      foregroundColor: AppTheme.primaryRed, // ตัวหนังสือสีแดง
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppTheme.primaryRed,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -95,18 +120,14 @@ class LoginScreen extends StatelessWidget {
 
                 const SizedBox(height: 40),
 
-                // Or Login with
                 const Center(
                   child: Text(
                     "Or Login with",
-                    style: TextStyle(
-                      color: Colors.white70,
-                    ), // ปรับสีจางลง
+                    style: TextStyle(color: Colors.white70),
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Social Buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -139,7 +160,6 @@ class LoginScreen extends StatelessWidget {
 
                 const SizedBox(height: 50),
 
-                // Register Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -161,8 +181,7 @@ class LoginScreen extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          decoration:
-                              TextDecoration.underline,
+                          decoration: TextDecoration.underline,
                           decorationColor: Colors.white,
                         ),
                       ),
@@ -177,14 +196,20 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField({required String hintText, bool isPassword = false}) {
+  // ปรับแก้รับ Controller
+  Widget _buildTextField({
+    required String hintText,
+    bool isPassword = false,
+    required TextEditingController controller,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white, // ช่องกรอกข้อมูล
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.transparent),
       ),
       child: TextField(
+        controller: controller, // ผูก Controller
         obscureText: isPassword,
         decoration: InputDecoration(
           border: InputBorder.none,
