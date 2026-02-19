@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "644417397860",
+    "project_id": "cn333-95dd5",
+    "storage_bucket": "cn333-95dd5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:644417397860:android:d84d76b81ed87f7d9b6b71",
+        "android_client_info": {
+          "package_name": "com.example.rushpal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDewhT8EfoEb91Xlk3ovF4lgw6SA790HC8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
