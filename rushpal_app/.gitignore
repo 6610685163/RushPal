@@ -1,0 +1,54 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# IntelliJ / Android Studio
+*.iml
+.idea/
+.run/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Flutter/Dart/Pub (ตัวจัดการแพ็กเกจและไฟล์ Build)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Android (ไฟล์ขยะของ Android และ Config เครื่อง)
+android/**/*.gradle
+android/**/gradle-wrapper.jar
+android/.gradle
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/**/generated/
+android/**/outputs/
+android/**/tmp/
+# Keystore files
+*.jks
+*.keystore
+*.key
+key.properties
+
+# Android Firebase Config
+android/app/google-services.json
+
+# iOS Firebase Config
+ios/Runner/GoogleService-Info.plist
+
+# Dart Firebase Config (ถ้าต้องการซ่อน API Key)
+lib/firebase_options.dart
