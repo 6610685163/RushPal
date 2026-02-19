@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rushpal/theme/app_theme.dart';
 
 class RunCompleteScreen extends StatelessWidget {
   final Duration duration;
   final double distance;
   final int calories;
+  final List<List<LatLng>> routeSegments;
 
   const RunCompleteScreen({
     super.key,
     required this.duration,
     required this.distance,
     required this.calories,
+    required this.routeSegments,
   });
 
   String _formatTime(Duration d) {
@@ -20,6 +25,11 @@ class RunCompleteScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    LatLng? startPoint;
+    if (routeSegments.isNotEmpty && routeSegments.first.isNotEmpty) {
+      startPoint = routeSegments.first.first;
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -44,8 +54,61 @@ class RunCompleteScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.grey[300]!),
               ),
-              child: const Center(
-                child: Text("Route Map", style: TextStyle(color: Colors.grey)),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: startPoint == null
+                    ? const Center(
+                        child: Text(
+                          "No Route Data",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : FlutterMap(
+                        options: MapOptions(
+                          initialCenter: startPoint,
+                          initialZoom: 15.0, // ซูมออกนิดหน่อยให้เห็นเส้นทาง
+                          interactionOptions: const InteractionOptions(
+                            flags: InteractiveFlag
+                                .none, // ล็อกแผนที่ ไม่ให้เลื่อนเล่นได้
+                          ),
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}',
+                            additionalOptions: {
+                              'accessToken':
+                                  dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '',
+                              'id': 'mapbox/dark-v11',
+                            },
+                          ),
+                          // วาดเส้นทางสีแดง
+                          for (var segment in routeSegments)
+                            if (segment.length > 1)
+                              PolylineLayer(
+                                polylines: [
+                                  Polyline(
+                                    points: segment,
+                                    strokeWidth: 5.0,
+                                    color: AppTheme.primaryRed,
+                                  ),
+                                ],
+                              ),
+                          // วางหมุดจุดเริ่มต้น
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: startPoint,
+                                child: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.green,
+                                  size: 30,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
               ),
             ),
             const SizedBox(height: 30),

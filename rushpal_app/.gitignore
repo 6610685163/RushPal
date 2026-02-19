@@ -52,3 +52,6 @@ ios/Runner/GoogleService-Info.plist
 
 # Dart Firebase Config (ถ้าต้องการซ่อน API Key)
 lib/firebase_options.dart
+
+# env file
+.env
