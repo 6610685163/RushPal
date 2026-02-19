@@ -1,0 +1,17 @@
+
+# ==========================================
+# Backend / Node.js (เพิ่มใหม่สำหรับฝั่งเซิร์ฟเวอร์)
+# ==========================================
+# Firebase Service Account Key (ห้ามเอาขึ้น Git เด็ดขาด!)
+serviceAccountKey.json
+
+# Node modules (ไฟล์แพ็กเกจต่างๆ ไม่ต้องเอาขึ้น เพราะมันหนักมาก)
+node_modules/
+
+# Environment variables (พวกไฟล์ตั้งค่าความลับต่างๆ)
+.env
+
+# ไฟล์ Log ของ Node.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
