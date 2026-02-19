@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'run_complete_screen.dart';
 
@@ -11,51 +15,149 @@ class StartRunScreen extends StatefulWidget {
 }
 
 class _StartRunScreenState extends State<StartRunScreen> {
-  bool isRunning = false;
-  Duration duration = Duration.zero;
-  Timer? timer;
+  // === 📍 ตัวแปรแผนที่ (จากโค้ดของคุณ) ===
+  final String mapboxAccessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '';
+  final String mapStyleId = 'mapbox/dark-v11';
+  final MapController _mapController = MapController();
+  List<List<LatLng>> routeSegments = [];
+  LatLng? currentLocation;
+  bool _isMapReady = false;
 
-  // ฟังก์ชันเริ่ม/หยุดเวลา (Pause/Resume)
-  void _toggleRun() {
-    setState(() {
-      isRunning = !isRunning;
+  // === ⏱️ ตัวแปรสถิติการวิ่ง ===
+  double totalDistance = 0.0;
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _timer;
+  bool hasStarted = false; // เช็คว่าเคยกดปุ่ม Start ใหญ่ไปหรือยัง
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocation();
+
+    // อัปเดต UI (เวลา) ทุกๆ 1 วินาที
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_stopwatch.isRunning) {
+        setState(() {}); // รีเฟรชหน้าจอให้เวลาเดิน
+      }
     });
-
-    if (isRunning) {
-      timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        setState(() {
-          duration = Duration(seconds: duration.inSeconds + 1);
-        });
-      });
-    } else {
-      timer?.cancel();
-    }
-  }
-
-  // ฟังก์ชันจบการวิ่ง (Stop)
-  void _finishRun() {
-    timer?.cancel();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RunCompleteScreen(
-          duration: duration,
-          distance: 5.25, // ค่าสมมติ
-          calories: 350, // ค่าสมมติ
-        ),
-      ),
-    );
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    _timer?.cancel();
     super.dispose();
+  }
+
+  // === ลอจิก GPS และ Map ===
+  Future<void> _initLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+      ),
+    ).listen((Position position) {
+      _updatePosition(position);
+    });
+  }
+
+  void _updatePosition(Position position) {
+    if (!mounted) return;
+
+    setState(() {
+      LatLng newPos = LatLng(position.latitude, position.longitude);
+
+      if (_stopwatch.isRunning) {
+        if (routeSegments.isEmpty) {
+          routeSegments.add([newPos]);
+        }
+
+        List<LatLng> currentSegment = routeSegments.last;
+        if (currentSegment.isNotEmpty) {
+          double dist = Geolocator.distanceBetween(
+            currentSegment.last.latitude,
+            currentSegment.last.longitude,
+            newPos.latitude,
+            newPos.longitude,
+          );
+
+          if (dist > 50) {
+            currentLocation = newPos;
+            if (_isMapReady) _mapController.move(newPos, 17.0);
+            return;
+          }
+
+          totalDistance += dist;
+          currentSegment.add(newPos);
+        } else {
+          currentSegment.add(newPos);
+        }
+      }
+
+      currentLocation = newPos;
+      if (_isMapReady) {
+        _mapController.move(newPos, 17.0);
+      }
+    });
+  }
+
+  // === ลอจิกคำนวณสถิติ ===
+  String _formatPace() {
+    if (totalDistance == 0) return "0:00";
+    double distanceKm = totalDistance / 1000;
+    double timeMinutes =
+        _stopwatch.elapsed.inMinutes +
+        (_stopwatch.elapsed.inSeconds % 60) / 60.0;
+    double paceDecimal = timeMinutes / distanceKm;
+
+    int minutes = paceDecimal.floor();
+    int seconds = ((paceDecimal - minutes) * 60).round();
+    return "$minutes:${seconds.toString().padLeft(2, '0')}";
   }
 
   String _formatTime(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     return "${twoDigits(d.inHours)}:${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
+  }
+
+  // === ลอจิกปุ่มกด ===
+  void _toggleRun() {
+    setState(() {
+      hasStarted = true;
+      if (_stopwatch.isRunning) {
+        _stopwatch.stop(); // กด Pause
+      } else {
+        _stopwatch.start(); // กด Resume
+        routeSegments.add([]); // ตัดเส้นใหม่
+      }
+    });
+  }
+
+  void _finishRun() {
+    _stopwatch.stop();
+    _timer?.cancel();
+
+    int calories = (totalDistance / 1000 * 60).toInt(); // สูตรจำลอง
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RunCompleteScreen(
+          duration: _stopwatch.elapsed,
+          distance: double.parse((totalDistance / 1000).toStringAsFixed(2)),
+          calories: calories,
+          routeSegments: routeSegments,
+        ),
+      ),
+    );
   }
 
   @override
@@ -68,7 +170,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () {
-            if (duration.inSeconds > 0) {
+            if (_stopwatch.elapsed.inSeconds > 0) {
               _finishRun();
             } else {
               Navigator.pop(context);
@@ -83,31 +185,84 @@ class _StartRunScreenState extends State<StartRunScreen> {
       ),
       body: Column(
         children: [
-          // 1. พื้นที่ Map (Placeholder)
+          // === 1. พื้นที่ Map (แทนที่ Placeholder ของเพื่อนด้วยของจริง) ===
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(30),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 10),
+                ],
               ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map, size: 50, color: Colors.grey),
-                    SizedBox(height: 10),
-                    Text(
-                      "Map Placeholder",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: currentLocation == null
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryRed,
+                        ),
+                      )
+                    : FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          onMapReady: () => _isMapReady = true,
+                          initialCenter: currentLocation!,
+                          initialZoom: 17.0,
+                          interactionOptions: const InteractionOptions(
+                            flags:
+                                InteractiveFlag.all & ~InteractiveFlag.rotate,
+                          ),
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}',
+                            additionalOptions: {
+                              'accessToken': mapboxAccessToken,
+                              'id': mapStyleId,
+                            },
+                          ),
+                          for (var segment in routeSegments)
+                            if (segment.length > 1)
+                              if (segment.isNotEmpty)
+                                PolylineLayer(
+                                  polylines: [
+                                    Polyline(
+                                      points: segment,
+                                      strokeWidth: 6.0,
+                                      color: AppTheme
+                                          .primaryRed, // เปลี่ยนเส้นเป็นสีแดงตามธีมแอป
+                                    ),
+                                  ],
+                                ),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: currentLocation!,
+                                width: 24,
+                                height: 24,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppTheme.primaryRed,
+                                      width: 3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),
 
-          // 2. Stats & Controls
+          // === 2. Stats & Controls ของเพื่อน (เอาข้อมูลจริงมาใส่) ===
           Container(
             padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
             decoration: const BoxDecoration(
@@ -123,9 +278,9 @@ class _StartRunScreenState extends State<StartRunScreen> {
             ),
             child: Column(
               children: [
-                // Timer
+                // เวลาที่วิ่งจริง
                 Text(
-                  _formatTime(duration),
+                  _formatTime(_stopwatch.elapsed),
                   style: const TextStyle(
                     fontSize: 60,
                     fontWeight: FontWeight.bold,
@@ -133,43 +288,42 @@ class _StartRunScreenState extends State<StartRunScreen> {
                   ),
                 ),
                 const Text("Total Time", style: TextStyle(color: Colors.grey)),
-
                 const SizedBox(height: 30),
 
-                // Stats Row
+                // ตัวเลขสถิติที่เปลี่ยนตามจริง
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStat("Distance", "5.25", "km"),
-                    _buildStat("Pace", "6:30", "/km"),
-                    _buildStat("Calories", "350", "kcal"),
+                    _buildStat(
+                      "Distance",
+                      (totalDistance / 1000).toStringAsFixed(2),
+                      "km",
+                    ),
+                    _buildStat("Pace", _formatPace(), "/km"),
+                    _buildStat(
+                      "Calories",
+                      ((totalDistance / 1000 * 60).toInt()).toString(),
+                      "kcal",
+                    ),
                   ],
                 ),
-
                 const SizedBox(height: 40),
 
-                // --- Controls Area ---
-                if (duration.inSeconds == 0 && !isRunning)
-                  // สถานะเริ่มต้น: ปุ่ม Start ปุ่มเดียวตรงกลาง
+                // ลอจิกปุ่มกด
+                if (!hasStarted)
                   _buildLargeButton(Icons.play_arrow, _toggleRun)
                 else
-                  // สถานะกำลังวิ่ง/หยุดชั่วคราว
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // ปุ่มเล็กด้านซ้าย (Pause/Resume)
                       _buildSmallButton(
-                        isRunning ? Icons.pause : Icons.play_arrow,
+                        _stopwatch.isRunning ? Icons.pause : Icons.play_arrow,
                         _toggleRun,
                       ),
-
-                      const SizedBox(width: 30), // ระยะห่าง
-                      // ปุ่มใหญ่ตรงกลาง (Stop/Finish)
+                      const SizedBox(width: 30),
                       _buildLargeButton(Icons.stop, _finishRun),
-
-                      // ✅ แก้ไข: เพิ่มพื้นที่ว่างด้านขวา เพื่อดุลน้ำหนักให้ปุ่มใหญ่อยู่กลางจอ
-                      const SizedBox(width: 30), // ระยะห่างเท่าด้านซ้าย
-                      const SizedBox(width: 60), // ขนาดเท่าปุ่มเล็ก (60px)
+                      const SizedBox(width: 30),
+                      const SizedBox(width: 60),
                     ],
                   ),
               ],
@@ -180,7 +334,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
     );
   }
 
-  // Helper: ปุ่มใหญ่ (Gradient) - ขนาด 100
+  // === Helper ของ UI (เหมือนของเพื่อนเป๊ะ) ===
   Widget _buildLargeButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -203,7 +357,6 @@ class _StartRunScreenState extends State<StartRunScreen> {
     );
   }
 
-  // Helper: ปุ่มเล็ก (สีเทา) - ขนาด 60
   Widget _buildSmallButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
