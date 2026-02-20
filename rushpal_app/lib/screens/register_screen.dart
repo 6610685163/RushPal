@@ -28,14 +28,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     try {
-      // 1. สร้าง User ใน Firebase Auth
+      // สร้าง User ใน Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: emailController.text.trim(),
             password: passwordController.text.trim(),
           );
 
-      // 2. บันทึกข้อมูลลง Firestore
+      // บันทึกข้อมูลลง Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -46,7 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           });
 
       if (mounted) {
-        Navigator.pop(context); // กลับไปหน้า Login
+        Navigator.pop(context);
       }
     } catch (e) {
       ScaffoldMessenger.of(
@@ -58,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryRed, // UI สีแดง
+      backgroundColor: AppTheme.primaryRed,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -117,7 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _register, // เรียกฟังก์ชัน register
+                  onPressed: _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppTheme.primaryRed,

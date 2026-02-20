@@ -185,7 +185,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
       ),
       body: Column(
         children: [
-          // === 1. พื้นที่ Map (แทนที่ Placeholder ของเพื่อนด้วยของจริง) ===
+          // พื้นที่ Map
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(20),
@@ -262,7 +262,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
             ),
           ),
 
-          // === 2. Stats & Controls ของเพื่อน (เอาข้อมูลจริงมาใส่) ===
+          // Stats & Controls ของเพื่อน (เอาข้อมูลจริงมาใส่)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
             decoration: const BoxDecoration(
@@ -334,7 +334,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
     );
   }
 
-  // === Helper ของ UI (เหมือนของเพื่อนเป๊ะ) ===
+  // Helper ของ UI
   Widget _buildLargeButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,

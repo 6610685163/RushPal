@@ -14,16 +14,15 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   final List<Widget> _pages = [
-    const HomeScreen(), // index 0
-    const MarketScreen(), // index 1
-    const StatsScreen(), // index 2
-    const FriendScreen(), // index 3
+    const HomeScreen(),
+    const MarketScreen(),
+    const StatsScreen(),
+    const FriendScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ตั้งค่านี้เพื่อให้เนื้อหา (สีแดงของ Home) ยืดไปอยู่หลังแถบเมนู
       extendBody: true,
       backgroundColor: Colors.white,
       body: _pages[_selectedIndex],
@@ -44,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
           BoxShadow(
             color: Colors.black.withOpacity(
               0.1,
-            ), // ปรับเงาให้ชัดขึ้น
+            ),
             blurRadius: 20,
             offset: const Offset(0, 5),
           ),

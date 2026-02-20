@@ -154,14 +154,14 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 90,
       width: double.infinity,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center, // จัดกึ่งกลาง
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 1. กล่องล่องหนด้านซ้าย (Invisible Spacer)
+          // กล่องล่องหนด้านซ้าย 
           // ใส่ไว้เพื่อถ่วงน้ำหนักให้ปุ่ม START อยู่ตรงกลางหน้าจอเป๊ะๆ
           const SizedBox(width: totalSideOffset),
 
-          // 2. ปุ่ม START (อยู่ตรงกลาง)
+          // ปุ่ม START (อยู่ตรงกลาง)
           Container(
             width: 230,
             height: 75,
@@ -203,10 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // 3. ระยะห่าง
+          // ระยะห่าง
           const SizedBox(width: gapSize),
 
-          // 4. ปุ่ม Party
+          // ปุ่ม Party
           GestureDetector(
             onTap: () {
               Navigator.push(

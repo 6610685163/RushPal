@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryRed, // ใช้ UI สีแดงของ front
+      backgroundColor: AppTheme.primaryRed,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -209,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
         border: Border.all(color: Colors.transparent),
       ),
       child: TextField(
-        controller: controller, // ผูก Controller
+        controller: controller,
         obscureText: isPassword,
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -224,7 +224,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ปรับแก้ให้รับ Widget child แทน IconData เพื่อใส่ Image ได้
   Widget _buildSocialButton({
     required Widget child,
     required Color color,

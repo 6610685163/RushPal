@@ -30,7 +30,7 @@ class FriendScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // 1. Search Bar
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Container(
@@ -49,7 +49,7 @@ class FriendScreen extends StatelessWidget {
             ),
           ),
 
-          // 2. Friend List
+          // Friend List
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20),

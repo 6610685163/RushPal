@@ -20,7 +20,7 @@ class _MarketScreenState extends State<MarketScreen>
   bool isLoading = true;
   int userPoints = 0;
   String currentModel = 'assets/models/guy.glb';
-  Map<String, dynamic>? selectedItem; // Store data of the currently selected item
+  Map<String, dynamic>? selectedItem;
 
   // Get user UID from Firebase Auth (if logged in)
   final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? "";
@@ -109,7 +109,7 @@ class _MarketScreenState extends State<MarketScreen>
         // Purchase successful, show notification and reload data
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('🎉 Purchase successful!'), backgroundColor: Colors.green),
+            const SnackBar(content: Text('Purchase successful!'), backgroundColor: Colors.green),
           );
         }
         fetchMarketData(); // Update points and item status
@@ -117,7 +117,7 @@ class _MarketScreenState extends State<MarketScreen>
         // Purchase failed (e.g., insufficient points)
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ Purchase failed: ${data['error']}'), backgroundColor: Colors.red),
+            SnackBar(content: Text('Purchase failed: ${data['error']}'), backgroundColor: Colors.red),
           );
         }
       }

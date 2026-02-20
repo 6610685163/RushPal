@@ -31,7 +31,7 @@ class ProfileScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 20),
 
-            // 1. Profile Image & Level
+            // Profile Image & Level
             Center(
               child: Stack(
                 alignment: Alignment.bottomCenter,
@@ -40,13 +40,12 @@ class ProfileScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: AppTheme.primaryGradient,
+                      color: Colors.grey,
                     ),
                     child: const CircleAvatar(
                       radius: 50,
                       backgroundColor: Colors.white,
-                      child: Icon(Icons.person, size: 60, color: Colors.grey),
-                      // ใส่รูปจริง: backgroundImage: AssetImage('assets/images/avatar.png'),
+                      child: Icon(Icons.person, size: 60, color: Colors.grey),               
                     ),
                   ),
                   Positioned(
@@ -57,13 +56,15 @@ class ProfileScreen extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
+                        color: Colors.grey,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.white, width: 2),
                       ),
                       child: const Text(
                         "Level 99",
                         style: TextStyle(
-                          color: Colors.white,
+                          color:
+                              Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -83,7 +84,7 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // 2. Friends & Trophies Count
+            // Friends & Trophies Count
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -100,7 +101,7 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // 3. Edit Profile Button
+            // Edit Profile Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: SizedBox(
@@ -130,7 +131,7 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            // 4. Stats Grid (Distance, Pace, Time, Calories)
+            // Stats Grid (Distance, Pace, Time, Calories)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: GridView.count(
@@ -171,7 +172,7 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            // 5. Trophies Section
+            // Trophies Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(

@@ -28,7 +28,7 @@ class StatsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. ส่วนเลือกช่วงเวลา (Day, Week, Month)
+            // ส่วนเลือกช่วงเวลา (Day, Week, Month)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -39,7 +39,7 @@ class StatsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // 2. กราฟจำลอง (Bar Chart)
+            // กราฟจำลอง (Bar Chart)
             SizedBox(
               height: 200,
               child: Row(
@@ -58,7 +58,7 @@ class StatsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // 3. ข้อมูลสรุป (Stat Cards)
+            // ข้อมูลสรุป (Stat Cards)
             _buildStatCard(
               "Distance",
               "999.9 km",
