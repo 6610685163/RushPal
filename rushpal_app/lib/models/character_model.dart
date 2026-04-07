@@ -49,7 +49,7 @@ final List<Character> myCharacters = [
       Skin(
         id: 'skin_f_1',
         name: 'default',
-        modelPath: 'assets/models/fern_default.glb',
+        modelPath: 'assets/models/fern_default_run.glb',
       ),
       Skin(
         id: 'skin_f_2',

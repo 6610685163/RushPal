@@ -5,7 +5,6 @@ import 'package:rushpal/theme/app_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Import ไฟล์โมเดลและหน้าเลือกตัวละคร
 import '../models/character_model.dart';
 import 'select_character_screen.dart';
 import 'settings_screen.dart';
@@ -156,19 +155,43 @@ class _HomeScreenState extends State<HomeScreen> {
                                     );
                                   }
 
-                                  return O3D(
-                                    key: ValueKey(
-                                      currentSkin.modelPath,
-                                    ), // บังคับรีโหลดเมื่อเปลี่ยนสกิน
-                                    src: currentSkin.modelPath,
-                                    controller: _controller,
-                                    autoPlay: true,
-                                    autoRotate: false, // ปิดการหมุนอัตโนมัติ
-                                    cameraControls: false,
-                                    backgroundColor: Colors.transparent,
-                                    exposure: 0.6, // แก้ปัญหาสีผิวซีด
-                                    animationName:
-                                        'Idle', // ชื่อท่าทางในไฟล์โมเดล
+                                  return Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // --- จำลองเงาใต้โมเดล ---
+                                      Positioned(
+                                        bottom: 20, // ปรับความสูงต่ำของเงาที่นี่
+                                        child: Container(
+                                          width: 140, // ปรับความกว้างของเงา
+                                          height: 25, // ปรับความแบนของเงา
+                                          decoration: const BoxDecoration(
+                                            color: Colors
+                                                .black26, // ความเข้มของเงา
+                                            borderRadius: BorderRadius.all(
+                                              Radius.elliptical(140, 25),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // ----------------------
+
+                                      // --- โมเดล 3D ---
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        child: O3D(
+                                          key: ValueKey(currentSkin.modelPath),
+                                          src: currentSkin.modelPath,
+                                          controller: _controller,
+                                          autoPlay: true,
+                                          autoRotate: false,
+                                          cameraControls: false,
+                                          backgroundColor: Colors.transparent,
+                                          exposure: 0.6,
+                                          animationName: 'Idle',
+                                        ),
+                                      ),
+                                    ],
                                   );
                                 },
                               ),
@@ -345,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  username, // แสดงชื่อจริงจาก Firestore
+                                  username,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
