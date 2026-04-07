@@ -98,12 +98,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               right: 0,
                               top: 0,
                               child: O3D(
-                                src: 'assets/models/guy.glb',
+                                src: 'assets/models/barbatos_run.glb',
                                 controller: _controller,
                                 autoPlay: true,
                                 autoRotate: false,
                                 cameraControls: false,
-                                animationName: 'mixamo.com',
                                 backgroundColor: Colors.transparent,
                               ),
                             ),

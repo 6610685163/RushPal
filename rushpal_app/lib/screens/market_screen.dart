@@ -19,7 +19,7 @@ class _MarketScreenState extends State<MarketScreen>
   // Variables for State management
   bool isLoading = true;
   int userPoints = 0;
-  String currentModel = 'assets/models/guy.glb';
+  String currentModel = 'assets/models/barbatos_run.glb';
   Map<String, dynamic>? selectedItem;
 
   // Get user UID from Firebase Auth (if logged in)
@@ -130,7 +130,7 @@ class _MarketScreenState extends State<MarketScreen>
   // Function to change outfit and keep track of selected item
   void _tryOnItem(Map<String, dynamic> item) {
     setState(() {
-      currentModel = item['model']?.toString() ?? 'assets/models/guy.glb';
+      currentModel = item['model']?.toString() ?? 'assets/models/barbatos_run.glb';
       selectedItem = item;
     });
   }
@@ -308,7 +308,7 @@ class _MarketScreenState extends State<MarketScreen>
         // ==========================================
         final String itemName = item['name']?.toString() ?? 'Unnamed';
         final String itemImage = item['image']?.toString() ?? '';
-        final String itemModel = item['model']?.toString() ?? 'assets/models/guy.glb';
+        final String itemModel = item['model']?.toString() ?? 'assets/models/barbatos_run.glb';
         final int itemPrice = item['price'] ?? 0;
         final bool isOwned = item['owned'] ?? false;
 
