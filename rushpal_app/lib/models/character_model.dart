@@ -26,7 +26,7 @@ class Character {
 final List<Character> myCharacters = [
   Character(
     id: 'char_male_01',
-    name: 'Leo',
+    name: 'Ray',
     gender: 'Male',
     skins: [
       Skin(
@@ -43,7 +43,7 @@ final List<Character> myCharacters = [
   ),
   Character(
     id: 'char_female_01',
-    name: 'Luna',
+    name: 'Fern',
     gender: 'Female',
     skins: [
       Skin(
