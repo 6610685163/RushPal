@@ -39,6 +39,11 @@ final List<Character> myCharacters = [
         name: 'black',
         modelPath: 'assets/models/ray_black_run.glb',
       ),
+      Skin(
+        id: 'skin_m_3',
+        name: 'cream',
+        modelPath: 'assets/models/ray_cream_run.glb',
+      ),
     ],
   ),
   Character(

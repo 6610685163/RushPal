@@ -170,7 +170,7 @@ class _MarketScreenState extends State<MarketScreen> {
               children: [
                 // --- จำลองเงาใต้โมเดล (อยู่ที่ฝ่าเท้า) ---
                 Positioned(
-                  bottom: 15,
+                  bottom: 10,
                   child: Container(
                     width: 160,
                     height: 25,
@@ -194,7 +194,7 @@ class _MarketScreenState extends State<MarketScreen> {
                     src: previewSkin!.modelPath,
                     controller: _controller,
                     autoPlay: true,
-                    autoRotate: true,
+                    autoRotate: false,
                     cameraControls: true,
                     animationName: 'Idle',
                     backgroundColor: Colors.transparent,
