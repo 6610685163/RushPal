@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:rushpal/theme/app_theme.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
