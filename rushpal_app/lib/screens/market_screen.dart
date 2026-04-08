@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:o3d/o3d.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../theme/app_theme.dart';
+import '../models/character_model.dart'; // Import โมเดลข้อมูล
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
@@ -11,381 +11,387 @@ class MarketScreen extends StatefulWidget {
   _MarketScreenState createState() => _MarketScreenState();
 }
 
-class _MarketScreenState extends State<MarketScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _MarketScreenState extends State<MarketScreen> {
   final O3DController _controller = O3DController();
 
-  // Variables for State management
-  bool isLoading = true;
-  int userPoints = 0;
-  String currentModel = 'assets/models/guy.glb';
-  Map<String, dynamic>? selectedItem;
-
-  // Get user UID from Firebase Auth (if logged in)
-  final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? "";
-  
-  // API URL (use 10.0.2.2 for Android Emulator, or computer's IP for physical device)
-  final String apiUrl = "http://10.0.2.2:3000/api/shop";
-
-  // Empty structure waiting for API data
-  Map<String, List<Map<String, dynamic>>> marketItems = {
-    'Head': [],
-    'Body': [],
-    'Legs': [],
-    'Shoes': [],
-  };
-
-  final List<String> tabs = ['Head', 'Body', 'Legs', 'Shoes'];
+  // ตัวแปรเก็บสถานะการ "ลองชุด" ภายในหน้า Market
+  Character? viewedCharacter;
+  Skin? previewSkin;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: tabs.length, vsync: this);
-    fetchMarketData(); // Call API to fetch data on screen load
+    // เริ่มต้นให้ตัวละครและสกินที่ดูอยู่ เป็นตัวเดียวกับที่ใส่อยู่ปัจจุบัน
+    viewedCharacter = PlayerState.currentCharacter.value;
+    previewSkin = PlayerState.currentSkin.value;
   }
 
-  // Function to fetch shop data and user points from Backend
-  Future<void> fetchMarketData() async {
-    setState(() => isLoading = true);
+  // ฟังก์ชันสวมใส่สกิน (อัปเดตทั้งตัวละคร สกิน ลง Firebase และ Global State)
+  Future<void> _equipSkin(Character character, Skin skin) async {
     try {
-      if (currentUid.isEmpty) {
-        print("Not logged in to Firebase Auth");
-        // If you want to test without a login system, use a hardcoded ID temporarily, e.g.,
-        // final response = await http.get(Uri.parse('$apiUrl/items/4pDXQmjG9tenIILMLizB7Kcj0adt2'));
-      }
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
 
-      final response = await http.get(Uri.parse('$apiUrl/items/$currentUid'));
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          userPoints = data['points'] ?? 0;
-          
-          // Clear old data and insert new data from API
-          marketItems = { 'Head': [], 'Body': [], 'Legs': [], 'Shoes': [] };
-          Map<String, dynamic> fetchedItems = data['marketItems'] ?? {};
-          
-          fetchedItems.forEach((key, value) {
-            marketItems[key] = List<Map<String, dynamic>>.from(value);
-          });
-          
-          isLoading = false;
-        });
-      } else {
-        print("Failed to load data: ${response.body}");
-        setState(() => isLoading = false);
+      // 1. อัปเดตข้อมูลใน Firestore ทั้ง characterId และ skinId
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'characterId': character.id,
+        'skinId': skin.id,
+      });
+
+      // 2. อัปเดต Global State เพื่อให้หน้า Home เปลี่ยนตามทันที
+      PlayerState.currentCharacter.value = character;
+      PlayerState.currentSkin.value = skin;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'สวมใส่ชุด ${skin.name} ให้ ${character.name} เรียบร้อยแล้ว',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
-      print("Error connecting to server: $e");
-      setState(() => isLoading = false);
+      print("Error equipping skin: $e");
     }
   }
 
-  // Function to buy an item
-  Future<void> buyItem(String itemId) async {
-    try {
-      // Show Loading Dialog while buying
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
+  // --- ฟังก์ชันแสดงหน้าต่าง Popup เลือกตัวละคร ---
+  void _showCharacterSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'เปลี่ยนตัวละคร',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: myCharacters.map((char) {
+              final isCurrentView = viewedCharacter?.id == char.id;
 
-      final response = await http.post(
-        Uri.parse('$apiUrl/buy'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'uid': currentUid,
-          'itemId': itemId,
-        }),
-      );
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    viewedCharacter = char;
+                    // เมื่อสลับตัวละคร ให้ดึงสกินแรกสุดมาพรีวิวเสมอ
+                    previewSkin = char.skins.first;
+                  });
 
-      // Close Loading Dialog
-      if (mounted) Navigator.pop(context);
+                  // สั่ง "สวมใส่" สกิน Default ของตัวละครนี้ และอัปเดตหน้า Home ทันที
+                  _equipSkin(char, char.skins.first);
 
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true) {
-        // Purchase successful, show notification and reload data
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Purchase successful!'), backgroundColor: Colors.green),
-          );
-        }
-        fetchMarketData(); // Update points and item status
-      } else {
-        // Purchase failed (e.g., insufficient points)
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Purchase failed: ${data['error']}'), backgroundColor: Colors.red),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      print("Error during purchase: $e");
-    }
-  }
-
-  // Function to change outfit and keep track of selected item
-  void _tryOnItem(Map<String, dynamic> item) {
-    setState(() {
-      currentModel = item['model']?.toString() ?? 'assets/models/guy.glb';
-      selectedItem = item;
-    });
+                  Navigator.pop(context); // ปิดหน้าต่าง Popup
+                },
+                child: Card(
+                  elevation: isCurrentView ? 8 : 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isCurrentView
+                          ? AppTheme.primaryRed
+                          : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Container(
+                    width: 110,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 20,
+                      horizontal: 10,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          char.gender == 'Male' ? Icons.boy : Icons.girl,
+                          size: 60,
+                          color: char.gender == 'Male'
+                              ? Colors.blue
+                              : Colors.pink,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          char.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          char.gender,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (viewedCharacter == null || previewSkin == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          "Avatar Shop",
+          "Skin Shop",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 20, top: 10, bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.monetization_on, color: Colors.orange, size: 20),
-                const SizedBox(width: 5),
-                Text(
-                  isLoading ? "..." : "$userPoints",
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        centerTitle: true,
       ),
-      // Show loading indicator if loading
-      body: isLoading 
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
-          : Column(
+      body: Column(
         children: [
-          // 1. 3D Character Display Section
+          // 1. ส่วนแสดงโมเดล 3D (Preview)
           Expanded(
-            flex: 4,
+            flex: 5,
             child: Stack(
               alignment: Alignment.center,
               children: [
+                // --- จำลองเงาใต้โมเดล (อยู่ที่ฝ่าเท้า) ---
                 Positioned(
-                  bottom: 20,
+                  bottom: 10,
                   child: Container(
-                    width: 200,
-                    height: 40,
+                    width: 160,
+                    height: 25,
                     decoration: const BoxDecoration(
-                      color: Colors.black12,
+                      color: Colors.black26,
                       borderRadius: BorderRadius.all(
-                        Radius.elliptical(200, 40),
+                        Radius.elliptical(160, 25),
                       ),
                     ),
                   ),
                 ),
+
+                // --- โมเดล 3D ---
                 SizedBox(
                   width: double.infinity,
+                  height: double.infinity,
                   child: O3D(
-                    key: ValueKey(currentModel),
-                    src: currentModel,
+                    key: ValueKey(
+                      previewSkin!.modelPath,
+                    ), // รีโหลดเมื่อเปลี่ยนสกิน
+                    src: previewSkin!.modelPath,
                     controller: _controller,
                     autoPlay: true,
-                    autoRotate: true,
+                    autoRotate: false,
                     cameraControls: true,
                     animationName: 'Idle',
                     backgroundColor: Colors.transparent,
+                    exposure: 0.6,
                   ),
                 ),
+
+                // --- ปุ่ม "Characters" (มุมซ้ายบน) ---
                 Positioned(
-                  right: 20,
-                  top: 20,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.grey[200],
-                    child: const Icon(Icons.tune, color: Colors.black54),
-                  ),
-                ),
-                
-                // === "Buy" button appears if the selected item is not owned ===
-                if (selectedItem != null && (selectedItem!['owned'] == false || selectedItem!['owned'] == null))
-                  Positioned(
-                    bottom: 20,
-                    child: ElevatedButton.icon(
-                      onPressed: () => buyItem(selectedItem!['id']),
-                      icon: const Icon(Icons.shopping_cart, color: Colors.white),
-                      label: Text(
-                        "Buy ${selectedItem!['price'] ?? 0} G",
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  top: 15,
+                  left: 15,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showCharacterSelectionDialog(context),
+                    icon: const Icon(Icons.people, color: Colors.black87),
+                    label: const Text(
+                      "Characters",
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      elevation: 4,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
                     ),
                   ),
+                ),
+
+                // --- ปุ่มกด "สวมใส่" จะปรากฏเมื่อไม่ได้ใช้ชุดนี้อยู่ ---
+                ValueListenableBuilder<Skin?>(
+                  valueListenable: PlayerState.currentSkin,
+                  builder: (context, globalSkin, _) {
+                    final globalChar = PlayerState.currentCharacter.value;
+
+                    // เช็คว่าตัวละครหรือสกินที่พรีวิวอยู่ แตกต่างจากของจริงหรือไม่
+                    final bool isDifferent =
+                        (previewSkin!.id != globalSkin?.id) ||
+                        (viewedCharacter!.id != globalChar?.id);
+
+                    if (isDifferent) {
+                      return Positioned(
+                        bottom: 10, // 👉 ปุ่ม USE THIS SKIN ขยับลงมาล่างสุด
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              _equipSkin(viewedCharacter!, previewSkin!),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryRed,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 40,
+                              vertical: 15,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 5,
+                          ),
+                          child: const Text(
+                            "USE THIS SKIN",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ],
             ),
           ),
 
-          // 2. Category TabBar
+          // 2. ส่วนเลือก Skin ด้านล่าง
           Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            height: 320, // ดันพื้นที่ให้สูงขึ้นเพื่อไม่ให้ Bottom Nav Bar บัง
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black12,
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
-                  offset: Offset(0, -5),
+                  offset: const Offset(0, -5),
                 ),
               ],
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppTheme.primaryRed,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: AppTheme.primaryRed,
-                  indicatorWeight: 3,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                  tabs: tabs.map((t) => Tab(text: t)).toList(),
-                ),
-
-                // 3. Item List
-                Container(
-                  height: 300,
-                  color: Colors.grey[50],
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: tabs
-                        .map((category) => _buildItemGrid(category))
-                        .toList(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
+                  child: Text(
+                    "Available Skins for ${viewedCharacter!.name}",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
+                Expanded(
+                  child: ValueListenableBuilder<Skin?>(
+                    valueListenable: PlayerState.currentSkin,
+                    builder: (context, globalSkin, _) {
+                      final globalChar = PlayerState.currentCharacter.value;
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: viewedCharacter!.skins.length,
+                        itemBuilder: (context, index) {
+                          final skin = viewedCharacter!.skins[index];
+
+                          final bool isPreviewing = previewSkin?.id == skin.id;
+                          final bool isEquipped =
+                              (globalSkin?.id == skin.id) &&
+                              (globalChar?.id == viewedCharacter!.id);
+
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                previewSkin = skin;
+                              });
+                            },
+                            child: Container(
+                              width: 140,
+                              margin: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isPreviewing
+                                      ? AppTheme.primaryRed
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.checkroom,
+                                    size: 50,
+                                    color: isEquipped
+                                        ? AppTheme.primaryRed
+                                        : Colors.grey,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    skin.name.toUpperCase(),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isEquipped
+                                          ? AppTheme.primaryRed
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                  if (isEquipped)
+                                    const Text(
+                                      "EQUIPPED",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                // ใส่พื้นที่ว่างดันปุ่มสกินให้พ้น Bottom Navigation Bar
+                const SizedBox(height: 120),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildItemGrid(String category) {
-    final items = marketItems[category] ?? [];
-
-    if (items.isEmpty) {
-      return Center(child: Text("No items in $category"));
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 15,
-        mainAxisSpacing: 15,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        
-        // ==========================================
-        // Null check to prevent red screen of death
-        // ==========================================
-        final String itemName = item['name']?.toString() ?? 'Unnamed';
-        final String itemImage = item['image']?.toString() ?? '';
-        final String itemModel = item['model']?.toString() ?? 'assets/models/guy.glb';
-        final int itemPrice = item['price'] ?? 0;
-        final bool isOwned = item['owned'] ?? false;
-
-        final isSelected = currentModel == itemModel;
-
-        return GestureDetector(
-          onTap: () => _tryOnItem(item),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              border: isSelected
-                  ? Border.all(color: AppTheme.primaryRed, width: 2)
-                  : Border.all(color: Colors.transparent),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: itemImage.isNotEmpty 
-                        ? (itemImage.startsWith('http')
-                            ? Image.network(
-                                itemImage,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey),
-                              )
-                            : Image.asset(
-                                itemImage,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.checkroom, color: Colors.grey),
-                              ))
-                        : const Icon(Icons.checkroom, size: 40, color: Colors.grey),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        itemName,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 5),
-                      isOwned
-                          ? const Text(
-                              "Owned",
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : Text(
-                              "$itemPrice G",
-                              style: const TextStyle(
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:o3d/o3d.dart';
 import 'package:rushpal/theme/app_theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/character_model.dart';
+import 'select_character_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
 import 'start_run_screen.dart';
 import 'party_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,21 +31,64 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> loadUserData() async {
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      // ดึงข้อมูลผู้ใช้จาก Firestore
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .get();
 
-      if (doc.exists) {
-        setState(() {
-          username = doc['username'] ?? "User";
-        });
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+
+        // ตรวจสอบว่าเคยเลือกตัวละครหรือยัง
+        if (data.containsKey('characterId') && data.containsKey('skinId')) {
+          try {
+            // หาข้อมูลตัวละครและสกินจาก ID ใน Database มาเก็บไว้ที่ Global State
+            final foundChar = myCharacters.firstWhere(
+              (c) => c.id == data['characterId'],
+            );
+            final foundSkin = foundChar.skins.firstWhere(
+              (s) => s.id == data['skinId'],
+            );
+
+            if (mounted) {
+              setState(() {
+                PlayerState.currentCharacter.value = foundChar;
+                PlayerState.currentSkin.value = foundSkin;
+                username = data['username'] ?? "User";
+              });
+            }
+          } catch (e) {
+            // กรณี ID ในฐานข้อมูลไม่ตรงกับก้อนข้อมูลในแอป ให้ไปหน้าเลือกตัวละครใหม่
+            _navigateToSelectCharacter();
+          }
+        } else {
+          // ถ้ายังไม่มีข้อมูลตัวละครในฐานข้อมูล ให้ไปหน้าเลือกตัวละคร
+          _navigateToSelectCharacter();
+        }
+      } else {
+        // กรณีไม่มีเอกสารผู้ใช้ใน Firestore
+        _navigateToSelectCharacter();
       }
     } catch (e) {
-      setState(() {
-        username = "Guest";
-      });
+      debugPrint("Error loading user data: $e");
+      if (mounted) {
+        setState(() {
+          username = "Guest";
+        });
+      }
+    }
+  }
+
+  void _navigateToSelectCharacter() {
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (c) => const SelectCharacterScreen()),
+      );
     }
   }
 
@@ -97,14 +143,57 @@ class _HomeScreenState extends State<HomeScreen> {
                               left: 0,
                               right: 0,
                               top: 0,
-                              child: O3D(
-                                src: 'assets/models/guy.glb',
-                                controller: _controller,
-                                autoPlay: true,
-                                autoRotate: false,
-                                cameraControls: false,
-                                animationName: 'mixamo.com',
-                                backgroundColor: Colors.transparent,
+                              child: ValueListenableBuilder<Skin?>(
+                                valueListenable: PlayerState.currentSkin,
+                                builder: (context, currentSkin, child) {
+                                  // ถ้ายังโหลดข้อมูลไม่เสร็จ ให้แสดงตัวหมุน
+                                  if (currentSkin == null) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppTheme.primaryRed,
+                                      ),
+                                    );
+                                  }
+
+                                  return Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // --- จำลองเงาใต้โมเดล ---
+                                      Positioned(
+                                        bottom: 20, // ปรับความสูงต่ำของเงาที่นี่
+                                        child: Container(
+                                          width: 140, // ปรับความกว้างของเงา
+                                          height: 25, // ปรับความแบนของเงา
+                                          decoration: const BoxDecoration(
+                                            color: Colors
+                                                .black26, // ความเข้มของเงา
+                                            borderRadius: BorderRadius.all(
+                                              Radius.elliptical(140, 25),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // ----------------------
+
+                                      // --- โมเดล 3D ---
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        child: O3D(
+                                          key: ValueKey(currentSkin.modelPath),
+                                          src: currentSkin.modelPath,
+                                          controller: _controller,
+                                          autoPlay: true,
+                                          autoRotate: false,
+                                          cameraControls: false,
+                                          backgroundColor: Colors.transparent,
+                                          exposure: 0.6,
+                                          animationName: 'Idle',
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                             Positioned(
@@ -124,9 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // --- Control Area ---
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                    ), // ลด Padding เพื่อให้มีพื้นที่จัดวาง
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Column(
                       children: [
                         const SizedBox(height: 20),
@@ -145,7 +232,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStartButton() {
-    // กำหนดขนาดความกว้างของปุ่ม Party และระยะห่าง เพื่อใช้คำนวณตัวถ่วงดุล
     const double partyButtonSize = 50.0;
     const double gapSize = 10.0;
     const double totalSideOffset = partyButtonSize + gapSize;
@@ -157,11 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // กล่องล่องหนด้านซ้าย 
-          // ใส่ไว้เพื่อถ่วงน้ำหนักให้ปุ่ม START อยู่ตรงกลางหน้าจอเป๊ะๆ
           const SizedBox(width: totalSideOffset),
-
-          // ปุ่ม START (อยู่ตรงกลาง)
           Container(
             width: 230,
             height: 75,
@@ -202,11 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // ระยะห่าง
           const SizedBox(width: gapSize),
-
-          // ปุ่ม Party
           GestureDetector(
             onTap: () {
               Navigator.push(
@@ -290,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  "Player Name",
+                                  username,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
