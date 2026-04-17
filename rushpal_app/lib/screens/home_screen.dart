@@ -34,25 +34,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      // ดึงข้อมูลผู้ใช้จาก Firestore
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-
-        // ตรวจสอบว่าเคยเลือกตัวละครหรือยัง
         if (data.containsKey('characterId') && data.containsKey('skinId')) {
           try {
-            // หาข้อมูลตัวละครและสกินจาก ID ใน Database มาเก็บไว้ที่ Global State
-            final foundChar = myCharacters.firstWhere(
-              (c) => c.id == data['characterId'],
-            );
-            final foundSkin = foundChar.skins.firstWhere(
-              (s) => s.id == data['skinId'],
-            );
+            final foundChar = myCharacters.firstWhere((c) => c.id == data['characterId']);
+            final foundSkin = foundChar.skins.firstWhere((s) => s.id == data['skinId']);
 
             if (mounted) {
               setState(() {
@@ -62,24 +51,16 @@ class _HomeScreenState extends State<HomeScreen> {
               });
             }
           } catch (e) {
-            // กรณี ID ในฐานข้อมูลไม่ตรงกับก้อนข้อมูลในแอป ให้ไปหน้าเลือกตัวละครใหม่
             _navigateToSelectCharacter();
           }
         } else {
-          // ถ้ายังไม่มีข้อมูลตัวละครในฐานข้อมูล ให้ไปหน้าเลือกตัวละคร
           _navigateToSelectCharacter();
         }
       } else {
-        // กรณีไม่มีเอกสารผู้ใช้ใน Firestore
         _navigateToSelectCharacter();
       }
     } catch (e) {
-      debugPrint("Error loading user data: $e");
-      if (mounted) {
-        setState(() {
-          username = "Guest";
-        });
-      }
+      if (mounted) setState(() => username = "Guest");
     }
   }
 
@@ -97,131 +78,71 @@ class _HomeScreenState extends State<HomeScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.primaryRed,
+        backgroundColor: AppTheme.pureBlack,
         body: Stack(
           children: [
-            SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  _buildHeader(context),
-                  const SizedBox(height: 10),
+            // 1. พื้นหลังเกม
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/home_bg.png',
+                fit: BoxFit.cover,
+                color: Colors.black.withOpacity(0.4),
+                colorBlendMode: BlendMode.darken,
+              ),
+            ),
 
-                  // --- Character Card (Avatar) ---
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 30,
-                            offset: const Offset(0, 15),
+            // 2. ตัวละคร 3D
+            Positioned.fill(
+              bottom: 100,
+              child: ValueListenableBuilder<Skin?>(
+                valueListenable: PlayerState.currentSkin,
+                builder: (context, currentSkin, child) {
+                  if (currentSkin == null) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primaryPink),
+                    );
+                  }
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned(
+                        bottom: MediaQuery.of(context).size.height * 0.18,
+                        child: Container(
+                          width: 150,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: const BorderRadius.all(Radius.elliptical(160, 20)),
+                            
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(30),
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: Image.asset(
-                                'assets/images/home_bg.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) =>
-                                    Container(color: Colors.grey[200]),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 20,
-                              left: 0,
-                              right: 0,
-                              top: 0,
-                              child: ValueListenableBuilder<Skin?>(
-                                valueListenable: PlayerState.currentSkin,
-                                builder: (context, currentSkin, child) {
-                                  // ถ้ายังโหลดข้อมูลไม่เสร็จ ให้แสดงตัวหมุน
-                                  if (currentSkin == null) {
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                        color: AppTheme.primaryRed,
-                                      ),
-                                    );
-                                  }
-
-                                  return Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      // --- จำลองเงาใต้โมเดล ---
-                                      Positioned(
-                                        bottom: 20, // ปรับความสูงต่ำของเงาที่นี่
-                                        child: Container(
-                                          width: 140, // ปรับความกว้างของเงา
-                                          height: 25, // ปรับความแบนของเงา
-                                          decoration: const BoxDecoration(
-                                            color: Colors
-                                                .black26, // ความเข้มของเงา
-                                            borderRadius: BorderRadius.all(
-                                              Radius.elliptical(140, 25),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // ----------------------
-
-                                      // --- โมเดล 3D ---
-                                      SizedBox(
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        child: O3D(
-                                          key: ValueKey(currentSkin.modelPath),
-                                          src: currentSkin.modelPath,
-                                          controller: _controller,
-                                          autoPlay: true,
-                                          autoRotate: false,
-                                          cameraControls: false,
-                                          backgroundColor: Colors.transparent,
-                                          exposure: 0.6,
-                                          animationName: 'Idle',
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ),
-                            Positioned(
-                              top: 20,
-                              left: 20,
-                              child: _buildBadge(
-                                "Streak 5",
-                                Icons.local_fire_department,
-                                Colors.orange,
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
-                  ),
+                      O3D(
+                        key: ValueKey(currentSkin.modelPath),
+                        src: currentSkin.modelPath,
+                        controller: _controller,
+                        autoPlay: true,
+                        autoRotate: false,
+                        cameraControls: false,
+                        backgroundColor: Colors.transparent,
+                        exposure: 0.8,
+                        animationName: 'Idle',
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
 
-                  // --- Control Area ---
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        _buildStartButton(),
-                        const SizedBox(height: 120),
-                      ],
-                    ),
-                  ),
+            // 3. UI HUD
+            SafeArea(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildGameHUD(context),
+                  _buildBottomControls(),
                 ],
               ),
             ),
@@ -231,254 +152,179 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStartButton() {
-    const double partyButtonSize = 50.0;
-    const double gapSize = 10.0;
-    const double totalSideOffset = partyButtonSize + gapSize;
-
-    return SizedBox(
-      height: 90,
-      width: double.infinity,
+  Widget _buildGameHUD(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(width: totalSideOffset),
-          Container(
-            width: 230,
-            height: 75,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(40),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(40),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const StartRunScreen(),
-                    ),
-                  );
-                },
-                child: const Center(
-                  child: Text(
-                    "START",
-                    style: TextStyle(
-                      color: AppTheme.primaryRed,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2.0,
-                    ),
+          // ฝั่งซ้าย: โปรไฟล์ และ Coin
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ProfileScreen())),
+                child: Container(
+                  width: 190,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.darkBlue.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.white24, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppTheme.pureBlack,
+                        child: Icon(Icons.person, color: AppTheme.primaryPink, size: 26),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              username,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: const LinearProgressIndicator(
+                                value: 0.7,
+                                minHeight: 6,
+                                backgroundColor: Colors.white24,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              "Lv. 99",
+                              style: TextStyle(color: AppTheme.primaryPink, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: 10),
+              _buildBadge("1,000", Icons.monetization_on_rounded, Colors.amber),
+            ],
           ),
-          const SizedBox(width: gapSize),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const PartyScreen()),
-              );
-            },
-            child: Container(
-              width: partyButtonSize,
-              height: partyButtonSize,
-              color: Colors.transparent,
-              child: const Icon(
-                Icons.celebration,
-                color: Colors.white,
-                size: 34,
-                shadows: [
-                  Shadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
+
+          // ฝั่งขวา: Noti, Settings, Streak, Party
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const SizedBox(height: 15),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildTopIconButton(Icons.notifications_none_rounded, () {}),
+                  const SizedBox(width: 10),
+                  _buildTopIconButton(Icons.settings_rounded, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (c) => const SettingsScreen()));
+                  }),
                 ],
               ),
-            ),
+              const SizedBox(height: 15),
+              _buildBadge("Streak 5", Icons.local_fire_department, Colors.orange),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PartyScreen())),
+                child: _buildBadge("Party", Icons.celebration_rounded, AppTheme.primaryPink),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+  Widget _buildTopIconButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 12,
-              offset: Offset(0, 6),
-            ),
-          ],
+          color: AppTheme.darkBlue.withOpacity(0.8),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white10),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (c) => const ProfileScreen()),
-                  );
-                },
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppTheme.primaryGradient,
-                      ),
-                      child: const CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.white,
-                        child: Icon(
-                          Icons.person,
-                          color: AppTheme.primaryRed,
-                          size: 34,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  username,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryRed.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  "Lv. 99",
-                                  style: TextStyle(
-                                    color: AppTheme.primaryRed,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: const LinearProgressIndicator(
-                              value: 0.7,
-                              minHeight: 8,
-                              backgroundColor: Color(0xFFEEEEEE),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.orange,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.monetization_on_rounded,
-                                size: 18,
-                                color: Colors.amber,
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                "1,000 G",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (c) => const SettingsScreen()),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: const Icon(
-                  Icons.hexagon_outlined,
-                  color: Colors.black87,
-                  size: 30,
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
   }
 
   Widget _buildBadge(String text, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      width: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        color: AppTheme.darkBlue.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 18),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBottomControls() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 60), 
+      child: Center(
+        child: GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StartRunScreen())),
+          child: Container(
+            width: 260,
+            height: 75,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryPink.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(40),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryPink.withOpacity(0.4),
+                  blurRadius: 25,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+              border: Border.all(color: Colors.white.withOpacity(0.8), width: 2),
+            ),
+            child: const Center(
+              child: Text(
+                "TAP TO RUN",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.5,
+                  shadows: [Shadow(color: Colors.black38, offset: Offset(0, 3), blurRadius: 6)],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
