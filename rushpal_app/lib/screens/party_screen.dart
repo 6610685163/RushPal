@@ -7,33 +7,30 @@ class PartyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack, // สีดำ
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "Party",
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
         ),
         centerTitle: true,
-        // เพิ่มปุ่ม Join Party ที่ขวาบน
         actions: [
           TextButton(
-            onPressed: () {
-              _showJoinDialog(context);
-            },
+            onPressed: () => _showJoinDialog(context),
             child: const Text(
               "Join Party",
               style: TextStyle(
-                color: AppTheme.primaryRed,
+                color: AppTheme.primaryPink,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -49,40 +46,37 @@ class PartyScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-
-              // Party Name Header
               const Text(
                 "Party Name",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 8),
-
-              // Party Code Section
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
+                  color: AppTheme.darkBlue.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
                 ),
                 child: Row(
                   children: [
                     const Text(
                       "Party code: ",
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                     const Text(
                       "KZ892",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryPink,
                         letterSpacing: 1.2,
                       ),
                     ),
@@ -90,53 +84,42 @@ class PartyScreen extends StatelessWidget {
                     IconButton(
                       icon: const Icon(
                         Icons.copy,
-                        color: Colors.grey,
+                        color: Colors.white54,
                         size: 20,
                       ),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Copied party code!")),
-                        );
-                      },
+                      onPressed: () {},
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-
               const Text(
                 "Members",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 16),
-
-              // Member List
               Expanded(
                 child: ListView.separated(
                   itemCount: 4,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    return _buildMemberCard(index);
-                  },
+                  itemBuilder: (context, index) => _buildMemberCard(index),
                 ),
               ),
-
-              // ปุ่ม Leave Party
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
+                    backgroundColor: AppTheme.primaryPink,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    elevation: 2,
                   ),
                   child: const Text(
                     "LEAVE PARTY",
@@ -156,21 +139,27 @@ class PartyScreen extends StatelessWidget {
     );
   }
 
-  // ฟังก์ชันแสดง Dialog สำหรับกรอกรหัส Join Party
   void _showJoinDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: AppTheme.darkBlue,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AppTheme.primaryPink)
           ),
-          title: const Text("Join Party"),
+          title: const Text(
+            "Join Party",
+            style: TextStyle(color: Colors.white),
+          ),
           content: TextField(
+            style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: "Enter party code",
+              hintStyle: const TextStyle(color: Colors.white54),
               filled: true,
-              fillColor: Colors.grey[100],
+              fillColor: AppTheme.pureBlack,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -180,15 +169,15 @@ class PartyScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.white54),
+              ),
             ),
             ElevatedButton(
-              onPressed: () {
-                // Logic เข้าร่วมปาร์ตี้
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryRed,
+                backgroundColor: AppTheme.primaryPink,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -209,26 +198,19 @@ class PartyScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.darkBlue.withOpacity(0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.white12),
       ),
       child: Row(
         children: [
           Container(
             width: 50,
             height: 50,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.grey[200],
-              image: const DecorationImage(
+              color: AppTheme.pureBlack,
+              image: DecorationImage(
                 image: AssetImage('assets/images/home_bg.png'),
                 fit: BoxFit.cover,
               ),
@@ -246,6 +228,7 @@ class PartyScreen extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: Colors.white,
                       ),
                     ),
                     if (isLeader) ...[
@@ -256,7 +239,7 @@ class PartyScreen extends StatelessWidget {
                 ),
                 Text(
                   levels[index],
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -264,15 +247,13 @@ class PartyScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: isLeader
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.grey[100],
+              color: isLeader ? Colors.green.withOpacity(0.2) : Colors.white12,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               isLeader ? "Leader" : "Ready",
               style: TextStyle(
-                color: isLeader ? Colors.green : Colors.grey,
+                color: isLeader ? Colors.greenAccent : Colors.white54,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),

@@ -7,53 +7,53 @@ class FriendScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
         title: const Text(
           "Friends",
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_add, color: AppTheme.primaryRed),
+            icon: const Icon(Icons.person_add, color: AppTheme.primaryPink),
             onPressed: () {},
           ),
         ],
       ),
       body: Column(
         children: [
-          // Search Bar
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: AppTheme.darkBlue.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.white12),
               ),
               child: const TextField(
+                style: TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  icon: Icon(Icons.search, color: Colors.grey),
+                  icon: Icon(Icons.search, color: Colors.white54),
                   hintText: "Search friend",
+                  hintStyle: TextStyle(color: Colors.white38),
                   border: InputBorder.none,
                 ),
               ),
             ),
           ),
-
-          // Friend List
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: 10, // จำนวนเพื่อนสมมติ
+              itemCount: 10,
               separatorBuilder: (c, i) => const SizedBox(height: 15),
               itemBuilder: (context, index) {
                 return _buildFriendItem(index);
@@ -66,37 +66,32 @@ class FriendScreen extends StatelessWidget {
   }
 
   Widget _buildFriendItem(int index) {
+    bool isOnline = index % 2 == 0;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.darkBlue.withOpacity(0.6),
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.white12),
       ),
       child: Row(
         children: [
-          // Avatar
           Container(
             padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: AppTheme.primaryGradient,
+              border: Border.all(
+                color: isOnline ? Colors.greenAccent : Colors.white24,
+                width: 2,
+              ),
             ),
             child: const CircleAvatar(
               radius: 25,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Colors.grey),
+              backgroundColor: AppTheme.pureBlack,
+              child: Icon(Icons.person, color: AppTheme.primaryPink),
             ),
           ),
           const SizedBox(width: 15),
-
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,31 +99,31 @@ class FriendScreen extends StatelessWidget {
                 Text(
                   "Friend Name ${index + 1}",
                   style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   "Level ${99 - index}",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
           ),
-
-          // Status / Action
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: index % 2 == 0
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.grey[100],
+              color: isOnline
+                  ? Colors.greenAccent.withOpacity(0.15)
+                  : Colors.white10,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              index % 2 == 0 ? "Online" : "Offline",
+              isOnline ? "Online" : "Offline",
               style: TextStyle(
-                color: index % 2 == 0 ? Colors.green : Colors.grey,
+                color: isOnline ? Colors.greenAccent : Colors.white54,
                 fontWeight: FontWeight.bold,
                 fontSize: 10,
               ),

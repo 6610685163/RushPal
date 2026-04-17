@@ -4,7 +4,6 @@ import 'package:rushpal/screens/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -18,7 +17,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmController = TextEditingController();
 
-  // ฟังก์ชัน Register
   Future<void> _register() async {
     if (passwordController.text != confirmController.text) {
       ScaffoldMessenger.of(
@@ -28,14 +26,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     try {
-      // สร้าง User ใน Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: emailController.text.trim(),
             password: passwordController.text.trim(),
           );
 
-      // บันทึกข้อมูลลง Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -58,7 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryRed,
+      backgroundColor: AppTheme.pureBlack, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -90,45 +86,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 30),
 
-              // Inputs (ใส่ Controller)
               _buildTextField(
                 hintText: "Username",
                 controller: usernameController,
+                icon: Icons.person_outline,
               ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Email", controller: emailController),
+              _buildTextField(
+                hintText: "Email",
+                controller: emailController,
+                icon: Icons.email_outlined,
+              ),
               const SizedBox(height: 16),
               _buildTextField(
                 hintText: "Password",
                 isPassword: true,
                 controller: passwordController,
+                icon: Icons.lock_outline,
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 hintText: "Confirm password",
                 isPassword: true,
                 controller: confirmController,
+                icon: Icons.lock_reset,
               ),
 
               const SizedBox(height: 30),
 
-              // Register Button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
                   onPressed: _register,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTheme.primaryRed,
+                    backgroundColor: AppTheme.primaryPink,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    elevation: 2,
+                    elevation: 5,
+                    shadowColor: AppTheme.primaryPink.withOpacity(0.5),
                   ),
                   child: const Text(
-                    "Register",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    "REGISTER",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -146,7 +152,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 1. Google Button
                   _buildSocialButton(
                     child: Image.asset(
                       'assets/images/google.png',
@@ -157,7 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: Colors.blue,
                       ),
                     ),
-                    color: Colors.white,
+                    color: AppTheme.darkBlue.withOpacity(0.8),
                     onTap: () {},
                   ),
                   const SizedBox(width: 20),
@@ -167,7 +172,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: Colors.white,
                       size: 30,
                     ),
-                    color: const Color(0xFF1877F2),
+                    color: const Color(0xFF1877F2).withOpacity(0.8),
                     onTap: () {},
                   ),
                 ],
@@ -180,7 +185,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   const Text(
                     "Already have an account? ",
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: Colors.white70),
                   ),
                   GestureDetector(
                     onTap: () {
@@ -194,16 +199,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: const Text(
                       "Login Now",
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppTheme.primaryPink,
                         fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Colors.white,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -211,29 +214,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ปรับแก้รับ Controller
   Widget _buildTextField({
     required String hintText,
     bool isPassword = false,
     required TextEditingController controller,
+    required IconData icon,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.transparent),
+        color: AppTheme.darkBlue.withOpacity(0.6), // น้ำเงินเข้ม โปร่งแสง
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
       child: TextField(
-        controller: controller, // ผูก Controller
+        controller: controller,
         obscureText: isPassword,
+        style: const TextStyle(
+          color: Colors.white,
+        ),
         decoration: InputDecoration(
           border: InputBorder.none,
+          prefixIcon: Icon(icon, color: Colors.white54),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+            horizontal: 20,
+            vertical: 18,
           ),
           hintText: hintText,
-          hintStyle: const TextStyle(color: Colors.grey),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
         ),
       ),
     );
@@ -247,18 +254,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 100, // ในหน้า Register เดิมกำหนดไว้ 100
+        width: 100,
         height: 50,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
         child: Center(child: child),
       ),

@@ -7,17 +7,16 @@ class StatsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        automaticallyImplyLeading:
-            false, // ซ่อนปุ่มย้อนกลับเพราะอยู่ใน Main Tab
+        automaticallyImplyLeading: false,
         title: const Text(
           "Stats",
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -28,18 +27,15 @@ class StatsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ส่วนเลือกช่วงเวลา (Day, Week, Month)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildTimeFilter("Day", false),
-                _buildTimeFilter("Week", true), // Active
+                _buildTimeFilter("Week", true),
                 _buildTimeFilter("Month", false),
               ],
             ),
             const SizedBox(height: 30),
-
-            // กราฟจำลอง (Bar Chart)
             SizedBox(
               height: 200,
               child: Row(
@@ -57,8 +53,6 @@ class StatsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-
-            // ข้อมูลสรุป (Stat Cards)
             _buildStatCard(
               "Distance",
               "999.9 km",
@@ -77,7 +71,7 @@ class StatsScreen extends StatelessWidget {
               "Calories burned",
               "2,000 cal",
               Icons.local_fire_department,
-              Colors.orange,
+              AppTheme.primaryPink,
             ),
           ],
         ),
@@ -91,13 +85,16 @@ class StatsScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.primaryRed : Colors.grey[200],
+          color: isActive
+              ? AppTheme.primaryPink
+              : AppTheme.darkBlue.withOpacity(0.6),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isActive ? Colors.white : Colors.white24),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.black54,
+            color: isActive ? Colors.white : Colors.white54,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -111,14 +108,20 @@ class StatsScreen extends StatelessWidget {
       children: [
         Container(
           width: 12,
-          height: 150 * heightFactor, // ความสูงตาม factor
+          height: 150 * heightFactor,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withOpacity(0.8),
+            color: AppTheme.primaryPink,
             borderRadius: BorderRadius.circular(6),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryPink.withOpacity(0.5),
+                blurRadius: 10,
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
-        Text(day, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(day, style: const TextStyle(fontSize: 12, color: Colors.white70)),
       ],
     );
   }
@@ -132,22 +135,16 @@ class StatsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.darkBlue.withOpacity(0.6),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.white12),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 28),
@@ -159,7 +156,7 @@ class StatsScreen extends StatelessWidget {
               Text(
                 title.toUpperCase(),
                 style: const TextStyle(
-                  color: Colors.grey,
+                  color: Colors.white54,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -170,7 +167,7 @@ class StatsScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
             ],

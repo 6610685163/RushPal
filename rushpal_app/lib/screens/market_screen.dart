@@ -3,7 +3,7 @@ import 'package:o3d/o3d.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
-import '../models/character_model.dart'; // Import โมเดลข้อมูล
+import '../models/character_model.dart';
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
@@ -13,89 +13,76 @@ class MarketScreen extends StatefulWidget {
 
 class _MarketScreenState extends State<MarketScreen> {
   final O3DController _controller = O3DController();
-
-  // ตัวแปรเก็บสถานะการ "ลองชุด" ภายในหน้า Market
   Character? viewedCharacter;
   Skin? previewSkin;
 
   @override
   void initState() {
     super.initState();
-    // เริ่มต้นให้ตัวละครและสกินที่ดูอยู่ เป็นตัวเดียวกับที่ใส่อยู่ปัจจุบัน
     viewedCharacter = PlayerState.currentCharacter.value;
     previewSkin = PlayerState.currentSkin.value;
   }
 
-  // ฟังก์ชันสวมใส่สกิน (อัปเดตทั้งตัวละคร สกิน ลง Firebase และ Global State)
   Future<void> _equipSkin(Character character, Skin skin) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      // 1. อัปเดตข้อมูลใน Firestore ทั้ง characterId และ skinId
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'characterId': character.id,
         'skinId': skin.id,
       });
 
-      // 2. อัปเดต Global State เพื่อให้หน้า Home เปลี่ยนตามทันที
       PlayerState.currentCharacter.value = character;
       PlayerState.currentSkin.value = skin;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'สวมใส่ชุด ${skin.name} ให้ ${character.name} เรียบร้อยแล้ว',
-            ),
+            content: Text('สวมใส่ชุด ${skin.name} ให้ ${character.name} แล้ว'),
             backgroundColor: Colors.green,
           ),
         );
       }
-    } catch (e) {
-      print("Error equipping skin: $e");
-    }
+    } catch (e) {}
   }
 
-  // --- ฟังก์ชันแสดงหน้าต่าง Popup เลือกตัวละคร ---
   void _showCharacterSelectionDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: AppTheme.darkBlue, // Popup สีมืด
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppTheme.primaryPink),
           ),
           title: const Text(
             'เปลี่ยนตัวละคร',
             textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
           ),
           content: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: myCharacters.map((char) {
               final isCurrentView = viewedCharacter?.id == char.id;
-
               return GestureDetector(
                 onTap: () {
                   setState(() {
                     viewedCharacter = char;
-                    // เมื่อสลับตัวละคร ให้ดึงสกินแรกสุดมาพรีวิวเสมอ
                     previewSkin = char.skins.first;
                   });
-
-                  // สั่ง "สวมใส่" สกิน Default ของตัวละครนี้ และอัปเดตหน้า Home ทันที
                   _equipSkin(char, char.skins.first);
-
-                  Navigator.pop(context); // ปิดหน้าต่าง Popup
+                  Navigator.pop(context);
                 },
                 child: Card(
+                  color: AppTheme.pureBlack,
                   elevation: isCurrentView ? 8 : 2,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
                       color: isCurrentView
-                          ? AppTheme.primaryRed
+                          ? AppTheme.primaryPink
                           : Colors.transparent,
                       width: 2,
                     ),
@@ -114,7 +101,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           size: 60,
                           color: char.gender == 'Male'
                               ? Colors.blue
-                              : Colors.pink,
+                              : AppTheme.primaryPink,
                         ),
                         const SizedBox(height: 10),
                         Text(
@@ -122,13 +109,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          char.gender,
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -145,52 +126,50 @@ class _MarketScreenState extends State<MarketScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (viewedCharacter == null || previewSkin == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    if (viewedCharacter == null || previewSkin == null)
+      return const Scaffold(
+        backgroundColor: AppTheme.pureBlack,
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryPink),
+        ),
+      );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack,
       appBar: AppBar(
         title: const Text(
           "Skin Shop",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
       ),
       body: Column(
         children: [
-          // 1. ส่วนแสดงโมเดล 3D (Preview)
           Expanded(
             flex: 5,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // --- จำลองเงาใต้โมเดล (อยู่ที่ฝ่าเท้า) ---
                 Positioned(
                   bottom: 10,
                   child: Container(
                     width: 160,
                     height: 25,
-                    decoration: const BoxDecoration(
-                      color: Colors.black26,
-                      borderRadius: BorderRadius.all(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.8),
+                      borderRadius: const BorderRadius.all(
                         Radius.elliptical(160, 25),
                       ),
                     ),
                   ),
                 ),
-
-                // --- โมเดล 3D ---
                 SizedBox(
                   width: double.infinity,
                   height: double.infinity,
                   child: O3D(
-                    key: ValueKey(
-                      previewSkin!.modelPath,
-                    ), // รีโหลดเมื่อเปลี่ยนสกิน
+                    key: ValueKey(previewSkin!.modelPath),
                     src: previewSkin!.modelPath,
                     controller: _controller,
                     autoPlay: true,
@@ -198,57 +177,82 @@ class _MarketScreenState extends State<MarketScreen> {
                     cameraControls: true,
                     animationName: 'Idle',
                     backgroundColor: Colors.transparent,
-                    exposure: 0.6,
+                    exposure: 0.8,
                   ),
                 ),
-
                 // --- ปุ่ม "Characters" (มุมซ้ายบน) ---
                 Positioned(
                   top: 15,
                   left: 15,
                   child: ElevatedButton.icon(
                     onPressed: () => _showCharacterSelectionDialog(context),
-                    icon: const Icon(Icons.people, color: Colors.black87),
+                    icon: const Icon(Icons.people, color: Colors.white),
                     label: const Text(
                       "Characters",
                       style: TextStyle(
-                        color: Colors.black87,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      elevation: 4,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
+                      backgroundColor: AppTheme.darkBlue.withOpacity(0.8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
+                        side: const BorderSide(color: Colors.white24),
                       ),
                     ),
                   ),
                 ),
-
-                // --- ปุ่มกด "สวมใส่" จะปรากฏเมื่อไม่ได้ใช้ชุดนี้อยู่ ---
+                // --- ปุ่ม "Coin" (มุมขวาบน) ---
+                Positioned(
+                  top: 20,
+                  right: 15,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.darkBlue.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.monetization_on_rounded,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          "1,000",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 ValueListenableBuilder<Skin?>(
                   valueListenable: PlayerState.currentSkin,
                   builder: (context, globalSkin, _) {
                     final globalChar = PlayerState.currentCharacter.value;
-
-                    // เช็คว่าตัวละครหรือสกินที่พรีวิวอยู่ แตกต่างจากของจริงหรือไม่
                     final bool isDifferent =
                         (previewSkin!.id != globalSkin?.id) ||
                         (viewedCharacter!.id != globalChar?.id);
-
                     if (isDifferent) {
                       return Positioned(
-                        bottom: 10, // 👉 ปุ่ม USE THIS SKIN ขยับลงมาล่างสุด
+                        bottom: 10,
                         child: ElevatedButton(
                           onPressed: () =>
                               _equipSkin(viewedCharacter!, previewSkin!),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryRed,
+                            backgroundColor: AppTheme.primaryPink,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 40,
                               vertical: 15,
@@ -256,7 +260,6 @@ class _MarketScreenState extends State<MarketScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
-                            elevation: 5,
                           ),
                           child: const Text(
                             "USE THIS SKIN",
@@ -274,22 +277,14 @@ class _MarketScreenState extends State<MarketScreen> {
               ],
             ),
           ),
-
-          // 2. ส่วนเลือก Skin ด้านล่าง
           Container(
-            height: 320, // ดันพื้นที่ให้สูงขึ้นเพื่อไม่ให้ Bottom Nav Bar บัง
+            height: 320,
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: AppTheme.darkBlue,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(30),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
+              border: Border.all(color: Colors.white12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,6 +296,7 @@ class _MarketScreenState extends State<MarketScreen> {
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -309,19 +305,16 @@ class _MarketScreenState extends State<MarketScreen> {
                     valueListenable: PlayerState.currentSkin,
                     builder: (context, globalSkin, _) {
                       final globalChar = PlayerState.currentCharacter.value;
-
                       return ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 15),
                         scrollDirection: Axis.horizontal,
                         itemCount: viewedCharacter!.skins.length,
                         itemBuilder: (context, index) {
                           final skin = viewedCharacter!.skins[index];
-
                           final bool isPreviewing = previewSkin?.id == skin.id;
                           final bool isEquipped =
                               (globalSkin?.id == skin.id) &&
                               (globalChar?.id == viewedCharacter!.id);
-
                           return GestureDetector(
                             onTap: () {
                               setState(() {
@@ -332,20 +325,14 @@ class _MarketScreenState extends State<MarketScreen> {
                               width: 140,
                               margin: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppTheme.pureBlack,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: isPreviewing
-                                      ? AppTheme.primaryRed
+                                      ? AppTheme.primaryPink
                                       : Colors.transparent,
                                   width: 2,
                                 ),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 5,
-                                  ),
-                                ],
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -354,8 +341,8 @@ class _MarketScreenState extends State<MarketScreen> {
                                     Icons.checkroom,
                                     size: 50,
                                     color: isEquipped
-                                        ? AppTheme.primaryRed
-                                        : Colors.grey,
+                                        ? AppTheme.primaryPink
+                                        : Colors.white54,
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
@@ -363,8 +350,8 @@ class _MarketScreenState extends State<MarketScreen> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: isEquipped
-                                          ? AppTheme.primaryRed
-                                          : Colors.black,
+                                          ? AppTheme.primaryPink
+                                          : Colors.white,
                                     ),
                                   ),
                                   if (isEquipped)
@@ -385,7 +372,6 @@ class _MarketScreenState extends State<MarketScreen> {
                     },
                   ),
                 ),
-                // ใส่พื้นที่ว่างดันปุ่มสกินให้พ้น Bottom Navigation Bar
                 const SizedBox(height: 120),
               ],
             ),
