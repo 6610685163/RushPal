@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  supabase_flutter: ^2.6.0  # เพิ่มบรรทัดนี้
+  http: ^1.2.0  # 👇 เพิ่มบรรทัดนี้เพื่อใช้ยิง API
 
   firebase_core:
   firebase_auth:
