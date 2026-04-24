@@ -1,0 +1,388 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:rushpal/theme/app_theme.dart';
+import 'run_complete_screen.dart';
+
+class StartRunScreen extends StatefulWidget {
+  const StartRunScreen({super.key});
+
+  @override
+  State<StartRunScreen> createState() => _StartRunScreenState();
+}
+
+class _StartRunScreenState extends State<StartRunScreen> {
+  final String mapboxAccessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '';
+  final String mapStyleId = 'mapbox/dark-v11';
+  final MapController _mapController = MapController();
+  List<List<LatLng>> routeSegments = [];
+  LatLng? currentLocation;
+  bool _isMapReady = false;
+
+  double totalDistance = 0.0;
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _timer;
+  bool hasStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocation();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_stopwatch.isRunning) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+      ),
+    ).listen((Position position) => _updatePosition(position));
+  }
+
+  void _updatePosition(Position position) {
+    if (!mounted) return;
+    setState(() {
+      LatLng newPos = LatLng(position.latitude, position.longitude);
+      if (_stopwatch.isRunning) {
+        if (routeSegments.isEmpty) routeSegments.add([newPos]);
+        List<LatLng> currentSegment = routeSegments.last;
+        if (currentSegment.isNotEmpty) {
+          double dist = Geolocator.distanceBetween(
+            currentSegment.last.latitude,
+            currentSegment.last.longitude,
+            newPos.latitude,
+            newPos.longitude,
+          );
+          if (dist < 50) {
+            totalDistance += dist;
+            currentSegment.add(newPos);
+          }
+        } else {
+          currentSegment.add(newPos);
+        }
+      }
+      currentLocation = newPos;
+      if (_isMapReady) _mapController.move(newPos, 17.0);
+    });
+  }
+
+  String _formatPace() {
+    if (totalDistance == 0) return "0:00";
+    double distanceKm = totalDistance / 1000;
+    double timeMinutes =
+        _stopwatch.elapsed.inMinutes +
+        (_stopwatch.elapsed.inSeconds % 60) / 60.0;
+    double paceDecimal = timeMinutes / distanceKm;
+    int minutes = paceDecimal.floor();
+    int seconds = ((paceDecimal - minutes) * 60).round();
+    return "$minutes:${seconds.toString().padLeft(2, '0')}";
+  }
+
+  String _formatTime(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    return "${twoDigits(d.inHours)}:${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
+  }
+
+  void _toggleRun() {
+    setState(() {
+      hasStarted = true;
+      if (_stopwatch.isRunning) {
+        _stopwatch.stop();
+      } else {
+        _stopwatch.start();
+        routeSegments.add([]);
+      }
+    });
+  }
+
+  void _finishRun() {
+    _stopwatch.stop();
+    _timer?.cancel();
+    int calories = (totalDistance / 1000 * 60).toInt();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RunCompleteScreen(
+          duration: _stopwatch.elapsed,
+          distance: double.parse((totalDistance / 1000).toStringAsFixed(2)),
+          calories: calories,
+          routeSegments: routeSegments,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.pureBlack,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "RUNNING",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.darkBlue.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: AppTheme.primaryPink.withOpacity(0.3),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryPink.withOpacity(0.1),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: currentLocation == null
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryPink,
+                        ),
+                      )
+                    : FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          onMapReady: () => _isMapReady = true,
+                          initialCenter: currentLocation!,
+                          initialZoom: 17.0,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}',
+                            additionalOptions: {
+                              'accessToken': mapboxAccessToken,
+                              'id': mapStyleId,
+                            },
+                          ),
+                          for (var segment in routeSegments)
+                            if (segment.length > 1)
+                              PolylineLayer(
+                                polylines: [
+                                  Polyline(
+                                    points: segment,
+                                    strokeWidth: 6.0,
+                                    color: AppTheme.primaryPink,
+                                  ),
+                                ],
+                              ),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: currentLocation!,
+                                width: 30,
+                                height: 30,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppTheme.primaryPink,
+                                      width: 4,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primaryPink.withOpacity(
+                                          0.5,
+                                        ),
+                                        blurRadius: 10,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+            decoration: BoxDecoration(
+              color: AppTheme.darkBlue.withOpacity(0.9),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(40),
+              ),
+              border: const Border(top: BorderSide(color: Colors.white12)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _formatTime(_stopwatch.elapsed),
+                  style: const TextStyle(
+                    fontSize: 65,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    letterSpacing: -2,
+                  ),
+                ),
+                const Text(
+                  "TOTAL TIME",
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 30),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStat(
+                      "DISTANCE",
+                      (totalDistance / 1000).toStringAsFixed(2),
+                      "km",
+                    ),
+                    _buildStat("PACE", _formatPace(), "/km"),
+                    _buildStat(
+                      "CALORIES",
+                      ((totalDistance / 1000 * 60).toInt()).toString(),
+                      "kcal",
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 40),
+
+                if (!hasStarted)
+                  _buildLargeButton(Icons.play_arrow_rounded, _toggleRun)
+                else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildSmallButton(
+                        _stopwatch.isRunning
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        _toggleRun,
+                      ),
+                      const SizedBox(width: 40),
+                      _buildLargeButton(Icons.stop_rounded, _finishRun),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLargeButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 90,
+        height: 90,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryPink,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryPink.withOpacity(0.5),
+              blurRadius: 25,
+              offset: const Offset(0, 5),
+            ),
+          ],
+          border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+        ),
+        child: Icon(icon, color: Colors.white, size: 55),
+      ),
+    );
+  }
+
+  Widget _buildSmallButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+          color: Colors.white12,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Icon(icon, color: Colors.white, size: 35),
+      ),
+    );
+  }
+
+  Widget _buildStat(String label, String value, String unit) {
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4, left: 2),
+              child: Text(
+                unit,
+                style: const TextStyle(fontSize: 12, color: Colors.white54),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.primaryPink,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}

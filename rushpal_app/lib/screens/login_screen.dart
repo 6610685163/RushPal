@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/register_screen.dart';
-import 'package:rushpal/screens/home_screen.dart'; // สำหรับกด Login แล้วไปหน้า Home
+import 'package:rushpal/screens/main_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,158 +15,192 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  Future<void> _login() async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Login failed: ${e.toString()}")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // เปลี่ยนพื้นหลังเป็นสีดำของธีม เพื่อให้ UI ลอยเด่นขึ้นมา
+      backgroundColor: AppTheme.pureBlack,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              // Header Text: Welcome back!
-              Text(
-                "Welcome back!\nGlad to see you, Again!",
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Input: Email
-              _buildTextField(
-                hintText: "Enter your email",
-                controller: emailController,
-              ),
-              const SizedBox(height: 16),
-
-              // Input: Password
-              _buildTextField(
-                hintText: "Enter your password",
-                controller: passwordController,
-                isPassword: true,
-              ),
-
-              // Forgot Password?
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    "Forgot Password?",
-                    style: TextStyle(color: Colors.grey),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 20.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  "RushPal",
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 48,
+                    letterSpacing: 1.5,
+                    shadows: [
+                      BoxShadow(
+                        color: AppTheme.primaryPink.withOpacity(0.5),
+                        blurRadius: 20,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Login Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      await FirebaseAuth.instance.signInWithEmailAndPassword(
-                        email: emailController.text.trim(),
-                        password: passwordController.text.trim(),
-                      );
-
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomeScreen(),
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text("Login failed")));
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "Login",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                const SizedBox(height: 10),
+                const Text(
+                  "Run with your pal, anywhere.",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-              ),
+                const SizedBox(height: 50),
 
-              const SizedBox(height: 40),
-
-              // Or Login with
-              const Center(
-                child: Text(
-                  "Or Login with",
-                  style: TextStyle(color: Colors.grey),
+                _buildTextField(
+                  hintText: "Enter your email",
+                  controller: emailController,
+                  icon: Icons.email_outlined,
                 ),
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-              // Social Buttons (Facebook, Google)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildSocialButton(
-                    icon: Icons.facebook,
-                    color: const Color(0xFF1877F2), // Facebook Blue
-                    onTap: () {},
-                  ),
-                  const SizedBox(width: 20),
-                  _buildSocialButton(
-                    icon: Icons
-                        .g_mobiledata, // ใช้ icon g_mobiledata หรือหา icon Google อื่นๆ
-                    color: Colors.grey.shade200,
-                    iconColor: Colors.black,
-                    onTap: () {},
-                  ),
-                ],
-              ),
+                _buildTextField(
+                  hintText: "Enter your password",
+                  isPassword: true,
+                  controller: passwordController,
+                  icon: Icons.lock_outline,
+                ),
 
-              const SizedBox(height: 50),
-
-              // Register Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Don't have an account? ",
-                    style: TextStyle(color: Colors.black),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const RegisterScreen(),
-                        ),
-                      );
-                    },
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {},
                     child: const Text(
-                      "Register Now",
+                      "Forgot Password?",
                       style: TextStyle(
-                        color: Colors.cyan, // สีฟ้าตามภาพ PDF
-                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryPink,
+                      ), 
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Login Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryPink,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          15,
+                        ), 
+                      ),
+                      elevation: 5,
+                      shadowColor: AppTheme.primaryPink.withOpacity(0.5),
+                    ),
+                    child: const Text(
+                      "START",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ],
+                ),
+
+                const SizedBox(height: 40),
+
+                const Center(
+                  child: Text(
+                    "Or Login with",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildSocialButton(
+                      child: Image.asset(
+                        'assets/images/google.png',
+                        height: 24,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.g_mobiledata,
+                              size: 40,
+                              color: Colors.blue,
+                            ),
+                      ),
+                      color: AppTheme.darkBlue.withOpacity(
+                        0.8,
+                      ), // ปุ่ม Social สีมืด
+                      onTap: () {},
+                    ),
+                    const SizedBox(width: 20),
+                    _buildSocialButton(
+                      child: const Icon(
+                        Icons.facebook,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                      color: const Color(0xFF1877F2).withOpacity(0.8),
+                      onTap: () {},
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 50),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Don't have an account? ",
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Register Now",
+                        style: TextStyle(
+                          color: AppTheme.primaryPink,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -175,48 +209,52 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildTextField({
     required String hintText,
-    required TextEditingController controller,
     bool isPassword = false,
+    required TextEditingController controller,
+    required IconData icon,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F9), // สีเทาอ่อนๆ พื้นหลัง input
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8ECF4)), // เส้นขอบบางๆ
+        color: AppTheme.darkBlue.withOpacity(0.6), 
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword,
+        style: const TextStyle(
+          color: Colors.white,
+        ),
         decoration: InputDecoration(
           border: InputBorder.none,
+          prefixIcon: Icon(icon, color: Colors.white54),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+            horizontal: 20,
+            vertical: 18,
           ),
           hintText: hintText,
-          hintStyle: const TextStyle(color: Colors.grey),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
         ),
       ),
     );
   }
 
   Widget _buildSocialButton({
-    required IconData icon,
+    required Widget child,
     required Color color,
-    Color iconColor = Colors.white,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 80, // ปรับขนาดตามความเหมาะสม
+        width: 80,
         height: 50,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE8ECF4)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
-        child: Icon(icon, color: iconColor, size: 30),
+        child: Center(child: child),
       ),
     );
   }

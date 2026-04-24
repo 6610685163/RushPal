@@ -1,281 +1,383 @@
 import 'package:flutter/material.dart';
 import 'package:o3d/o3d.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
+import '../models/character_model.dart';
 
 class MarketScreen extends StatefulWidget {
+  const MarketScreen({super.key});
   @override
   _MarketScreenState createState() => _MarketScreenState();
 }
 
-class _MarketScreenState extends State<MarketScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _MarketScreenState extends State<MarketScreen> {
   final O3DController _controller = O3DController();
-
-  // ✅ 1. แก้ไข: ตัวแปรเก็บ path ของโมเดลปัจจุบัน (เริ่มที่ guy.glb)
-  String currentModel = 'assets/models/guy.glb';
-
-  // ✅ 2. แก้ไข: ข้อมูลสินค้า ให้ชี้ไปที่ guy.glb ทั้งหมดก่อน (กัน Error)
-  final Map<String, List<Map<String, dynamic>>> marketItems = {
-    'Head': [
-      {
-        'name': 'Basic Hair',
-        'price': 0,
-        'owned': true,
-        'model': 'assets/models/guy.glb', // แก้เป็น guy
-      },
-      {
-        'name': 'Cap',
-        'price': 500,
-        'owned': false,
-        // ใช้ guy.glb ไปก่อนจนกว่าจะมีไฟล์ guy_cap.glb
-        'model': 'assets/models/guy.glb',
-      },
-      {
-        'name': 'Helmet',
-        'price': 1200,
-        'owned': false,
-        'model': 'assets/models/guy.glb',
-      },
-    ],
-    'Body': [
-      {
-        'name': 'Adventurer',
-        'price': 0,
-        'owned': true,
-        'model': 'assets/models/guy.glb', // แก้เป็น guy
-      },
-      {
-        'name': 'Tracksuit',
-        'price': 2000,
-        'owned': false,
-        'model': 'assets/models/guy.glb',
-      },
-    ],
-    'Legs': [],
-    'Shoes': [],
-  };
-
-  final List<String> tabs = ['Head', 'Body', 'Legs', 'Shoes'];
+  Character? viewedCharacter;
+  Skin? previewSkin;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: tabs.length, vsync: this);
+    viewedCharacter = PlayerState.currentCharacter.value;
+    previewSkin = PlayerState.currentSkin.value;
   }
 
-  // ฟังก์ชันเปลี่ยนชุด
-  void _tryOnItem(String modelPath) {
-    setState(() {
-      currentModel = modelPath;
-    });
-    // O3D จะ Rebuild และโหลดโมเดลใหม่ตาม key ที่เปลี่ยนไป
+  Future<void> _equipSkin(Character character, Skin skin) async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'characterId': character.id,
+        'skinId': skin.id,
+      });
+
+      PlayerState.currentCharacter.value = character;
+      PlayerState.currentSkin.value = skin;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('สวมใส่ชุด ${skin.name} ให้ ${character.name} แล้ว'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {}
+  }
+
+  void _showCharacterSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppTheme.darkBlue, // Popup สีมืด
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppTheme.primaryPink),
+          ),
+          title: const Text(
+            'เปลี่ยนตัวละคร',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: myCharacters.map((char) {
+              final isCurrentView = viewedCharacter?.id == char.id;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    viewedCharacter = char;
+                    previewSkin = char.skins.first;
+                  });
+                  _equipSkin(char, char.skins.first);
+                  Navigator.pop(context);
+                },
+                child: Card(
+                  color: AppTheme.pureBlack,
+                  elevation: isCurrentView ? 8 : 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isCurrentView
+                          ? AppTheme.primaryPink
+                          : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Container(
+                    width: 110,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 20,
+                      horizontal: 10,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          char.gender == 'Male' ? Icons.boy : Icons.girl,
+                          size: 60,
+                          color: char.gender == 'Male'
+                              ? Colors.blue
+                              : AppTheme.primaryPink,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          char.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          "Avatar Shop",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+    if (viewedCharacter == null || previewSkin == null)
+      return const Scaffold(
+        backgroundColor: AppTheme.pureBlack,
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryPink),
         ),
-        backgroundColor: Colors.white,
+      );
+
+    return Scaffold(
+      backgroundColor: AppTheme.pureBlack,
+      appBar: AppBar(
+        title: const Text(
+          "Skin Shop",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          // เหรียญของผู้เล่น
-          Container(
-            margin: EdgeInsets.only(right: 20, top: 10, bottom: 10),
-            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.monetization_on, color: Colors.orange, size: 20),
-                SizedBox(width: 5),
-                Text(
-                  "99,999",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        centerTitle: true,
       ),
       body: Column(
         children: [
-          // 1. ส่วนแสดงตัวละคร 3D (Preview)
           Expanded(
-            flex: 4, // พื้นที่ 40%
+            flex: 5,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // พื้นหลังวงกลมที่เท้า
                 Positioned(
-                  bottom: 20,
+                  bottom: 10,
                   child: Container(
-                    width: 200,
-                    height: 40,
+                    width: 160,
+                    height: 25,
                     decoration: BoxDecoration(
-                      color: Colors.black12,
-                      borderRadius: BorderRadius.all(
-                        Radius.elliptical(200, 40),
+                      color: Colors.black.withOpacity(0.8),
+                      borderRadius: const BorderRadius.all(
+                        Radius.elliptical(160, 25),
                       ),
                     ),
                   ),
                 ),
-                // ตัวโมเดล 3D
-                Container(
+                SizedBox(
                   width: double.infinity,
+                  height: double.infinity,
                   child: O3D(
-                    key: ValueKey(
-                      currentModel,
-                    ), // ใส่ Key เพื่อให้มัน Rebuild ตอนเปลี่ยนชุด
-                    src: currentModel,
+                    key: ValueKey(previewSkin!.modelPath),
+                    src: previewSkin!.modelPath,
                     controller: _controller,
                     autoPlay: true,
-                    autoRotate: true, // หมุนโชว์ตัวในหน้านี้
-                    cameraControls: true, // ให้ user หมุนดูชุดได้
-                    animationName: 'Idle', // ยืนนิ่งๆ ลองชุด
+                    autoRotate: false,
+                    cameraControls: true,
+                    animationName: 'Idle',
                     backgroundColor: Colors.transparent,
+                    exposure: 0.8,
                   ),
                 ),
-                // ปุ่ม Filter
+                // --- ปุ่ม "Characters" (มุมซ้ายบน) ---
                 Positioned(
-                  right: 20,
-                  top: 20,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.grey[200],
-                    child: Icon(Icons.tune, color: Colors.black54),
+                  top: 15,
+                  left: 15,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showCharacterSelectionDialog(context),
+                    icon: const Icon(Icons.people, color: Colors.white),
+                    label: const Text(
+                      "Characters",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.darkBlue.withOpacity(0.8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: const BorderSide(color: Colors.white24),
+                      ),
+                    ),
                   ),
+                ),
+                // --- ปุ่ม "Coin" (มุมขวาบน) ---
+                Positioned(
+                  top: 20,
+                  right: 15,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.darkBlue.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.monetization_on_rounded,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          "1,000",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                ValueListenableBuilder<Skin?>(
+                  valueListenable: PlayerState.currentSkin,
+                  builder: (context, globalSkin, _) {
+                    final globalChar = PlayerState.currentCharacter.value;
+                    final bool isDifferent =
+                        (previewSkin!.id != globalSkin?.id) ||
+                        (viewedCharacter!.id != globalChar?.id);
+                    if (isDifferent) {
+                      return Positioned(
+                        bottom: 10,
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              _equipSkin(viewedCharacter!, previewSkin!),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryPink,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 40,
+                              vertical: 15,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: const Text(
+                            "USE THIS SKIN",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
               ],
             ),
           ),
-
-          // 2. แถบหมวดหมู่ (TabBar)
           Container(
+            height: 320,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 10,
-                  offset: Offset(0, -5),
-                ),
-              ],
+              color: AppTheme.darkBlue,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(color: Colors.white12),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppTheme.primaryRed,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: AppTheme.primaryRed,
-                  indicatorWeight: 3,
-                  labelStyle: TextStyle(fontWeight: FontWeight.bold),
-                  tabs: tabs.map((t) => Tab(text: t)).toList(),
-                ),
-
-                // 3. รายการสินค้า (Grid)
-                Container(
-                  height: 300,
-                  color: Colors.grey[50],
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: tabs
-                        .map((category) => _buildItemGrid(category))
-                        .toList(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
+                  child: Text(
+                    "Available Skins for ${viewedCharacter!.name}",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
+                Expanded(
+                  child: ValueListenableBuilder<Skin?>(
+                    valueListenable: PlayerState.currentSkin,
+                    builder: (context, globalSkin, _) {
+                      final globalChar = PlayerState.currentCharacter.value;
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: viewedCharacter!.skins.length,
+                        itemBuilder: (context, index) {
+                          final skin = viewedCharacter!.skins[index];
+                          final bool isPreviewing = previewSkin?.id == skin.id;
+                          final bool isEquipped =
+                              (globalSkin?.id == skin.id) &&
+                              (globalChar?.id == viewedCharacter!.id);
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                previewSkin = skin;
+                              });
+                            },
+                            child: Container(
+                              width: 140,
+                              margin: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.pureBlack,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isPreviewing
+                                      ? AppTheme.primaryPink
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.checkroom,
+                                    size: 50,
+                                    color: isEquipped
+                                        ? AppTheme.primaryPink
+                                        : Colors.white54,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    skin.name.toUpperCase(),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isEquipped
+                                          ? AppTheme.primaryPink
+                                          : Colors.white,
+                                    ),
+                                  ),
+                                  if (isEquipped)
+                                    const Text(
+                                      "EQUIPPED",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 120),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildItemGrid(String category) {
-    final items = marketItems[category] ?? [];
-
-    if (items.isEmpty) {
-      return Center(child: Text("No items in $category"));
-    }
-
-    return GridView.builder(
-      padding: EdgeInsets.all(20),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 15,
-        mainAxisSpacing: 15,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        final isSelected = currentModel == item['model'];
-
-        return GestureDetector(
-          onTap: () => _tryOnItem(item['model']),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              border: isSelected
-                  ? Border.all(color: AppTheme.primaryRed, width: 2)
-                  : Border.all(color: Colors.transparent),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Icon(Icons.checkroom, size: 40, color: Colors.grey),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        item['name'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 5),
-                      item['owned']
-                          ? Text(
-                              "Owned",
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontSize: 10,
-                              ),
-                            )
-                          : Text(
-                              "${item['price']} G",
-                              style: TextStyle(
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

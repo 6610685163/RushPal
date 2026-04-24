@@ -30,12 +30,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   firebase_core:
-  firebase_auth: 
-  cloud_firestore: 
+  firebase_auth:
+  cloud_firestore:
+  
   google_fonts: ^6.1.0
   # สำหรับดึงพิกัด GPS
-  geolocator: ^11.0.0
+  # geolocator: ^11.0.0
   # สำหรับแสดงแผนที่ Google Maps
   google_maps_flutter: ^2.6.0
   # สำหรับจัดการ State (คะแนน, เลเวล, ของแต่งตัว)
@@ -45,6 +47,10 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  geolocator: ^14.0.2
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  flutter_dotenv: ^6.0.0
   o3d: ^3.1.0
 
 dev_dependencies:
@@ -69,6 +75,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - .env
     - assets/images/
     - assets/models/
 

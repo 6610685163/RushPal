@@ -4,7 +4,6 @@ import 'package:rushpal/screens/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -17,15 +16,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmController = TextEditingController();
+
+  Future<void> _register() async {
+    if (passwordController.text != confirmController.text) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+      return;
+    }
+
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'username': usernameController.text.trim(),
+            'email': emailController.text.trim(),
+            'created_at': Timestamp.now(),
+          });
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack, 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -35,78 +69,71 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
-              // Header Text: Register to get started!
+              const SizedBox(height: 10),
               Text(
-                "Register\nto get started!",
+                "Join\nRushPal",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                   height: 1.2,
+                  fontSize: 36,
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 10),
+              const Text(
+                "Create an account to get started!",
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              const SizedBox(height: 30),
 
-              // Inputs
-              _buildTextField(hintText: "Username",controller: usernameController,),
+              _buildTextField(
+                hintText: "Username",
+                controller: usernameController,
+                icon: Icons.person_outline,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Email",controller: emailController,),
+              _buildTextField(
+                hintText: "Email",
+                controller: emailController,
+                icon: Icons.email_outlined,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Password", controller: passwordController, isPassword: true),
+              _buildTextField(
+                hintText: "Password",
+                isPassword: true,
+                controller: passwordController,
+                icon: Icons.lock_outline,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(hintText: "Confirm password",controller: confirmController, isPassword: true),
+              _buildTextField(
+                hintText: "Confirm password",
+                isPassword: true,
+                controller: confirmController,
+                icon: Icons.lock_reset,
+              ),
 
               const SizedBox(height: 30),
 
-              // Register Button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: ()async {
-                    if (passwordController.text != confirmController.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Passwords do not match")),
-                      );
-                      return;
-                    }
-
-                    try {
-                      UserCredential userCredential =
-                          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                        email: emailController.text.trim(),
-                        password: passwordController.text.trim(),
-                      );
-
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(userCredential.user!.uid)
-                          .set({
-      'username': usernameController.text.trim(),
-      'email': emailController.text.trim(),
-      'created_at': Timestamp.now(),
-    });
-
-    Navigator.pop(context); // กลับไปหน้า login
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString())),
-    );
-  }
-},
+                  onPressed: _register,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
+                    backgroundColor: AppTheme.primaryPink,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    elevation: 0,
+                    elevation: 5,
+                    shadowColor: AppTheme.primaryPink.withOpacity(0.5),
                   ),
                   child: const Text(
-                    "Register",
+                    "REGISTER",
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
                     ),
                   ),
                 ),
@@ -114,29 +141,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 30),
 
-              // Or Register with
               const Center(
                 child: Text(
                   "Or Register with",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.white70),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Social Buttons (เพิ่ม Google เข้ามาให้แล้ว)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildSocialButton(
-                    icon: Icons.facebook,
-                    color: const Color(0xFF1877F2), // Facebook Blue
+                    child: Image.asset(
+                      'assets/images/google.png',
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.g_mobiledata,
+                        size: 40,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    color: AppTheme.darkBlue.withOpacity(0.8),
                     onTap: () {},
                   ),
-                  const SizedBox(width: 20), // ระยะห่างระหว่างปุ่ม
+                  const SizedBox(width: 20),
                   _buildSocialButton(
-                    icon: Icons.g_mobiledata, // Google Icon
-                    color: Colors.grey.shade200,
-                    iconColor: Colors.black,
+                    child: const Icon(
+                      Icons.facebook,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                    color: const Color(0xFF1877F2).withOpacity(0.8),
                     onTap: () {},
                   ),
                 ],
@@ -144,13 +180,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 40),
 
-              // Login Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     "Already have an account? ",
-                    style: TextStyle(color: Colors.black),
+                    style: TextStyle(color: Colors.white70),
                   ),
                   GestureDetector(
                     onTap: () {
@@ -164,14 +199,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: const Text(
                       "Login Now",
                       style: TextStyle(
-                        color: Colors.cyan,
+                        color: AppTheme.primaryPink,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -179,33 +214,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildTextField({required String hintText, required TextEditingController controller, bool isPassword = false}) {
+  Widget _buildTextField({
+    required String hintText,
+    bool isPassword = false,
+    required TextEditingController controller,
+    required IconData icon,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8ECF4)),
+        color: AppTheme.darkBlue.withOpacity(0.6), // น้ำเงินเข้ม โปร่งแสง
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword,
+        style: const TextStyle(
+          color: Colors.white,
+        ),
         decoration: InputDecoration(
           border: InputBorder.none,
+          prefixIcon: Icon(icon, color: Colors.white54),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+            horizontal: 20,
+            vertical: 18,
           ),
           hintText: hintText,
-          hintStyle: const TextStyle(color: Colors.grey),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
         ),
       ),
     );
   }
 
   Widget _buildSocialButton({
-    required IconData icon,
+    required Widget child,
     required Color color,
-    Color iconColor = Colors.white,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -215,10 +258,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         height: 50,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE8ECF4)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
-        child: Icon(icon, color: iconColor, size: 30),
+        child: Center(child: child),
       ),
     );
   }
