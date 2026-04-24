@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rushpal/theme/app_theme.dart';
+import '../services/database_service.dart';
 
 class RunCompleteScreen extends StatelessWidget {
   final Duration duration;
@@ -183,8 +184,28 @@ class RunCompleteScreen extends StatelessWidget {
               width: double.infinity,
               height: 60,
               child: ElevatedButton(
-                onPressed: () =>
-                    Navigator.popUntil(context, (route) => route.isFirst),
+                // 👇 เปลี่ยน onPressed ให้เป็น async และเพิ่มคำสั่งเซฟข้อมูล
+                onPressed: () async {
+                  // 1. คำนวณ Pace (นาที / กิโลเมตร)
+                  double calculatedPace = 0.0;
+                  if (distance > 0) {
+                    calculatedPace = (duration.inSeconds / 60) / distance;
+                  }
+
+                  // 2. เรียกใช้ฟังก์ชันบันทึกข้อมูลลง Supabase
+                  final dbService = DatabaseService();
+                  await dbService.saveNewRun(
+                    distance: distance,
+                    pace: calculatedPace,
+                    seconds: duration.inSeconds,
+                  );
+
+                  // 3. ปิดหน้านี้แล้วกลับไปหน้าแรก (Home)
+                  if (context.mounted) {
+                    Navigator.popUntil(context, (route) => route.isFirst);
+                  }
+                },
+                // 👆 สิ้นสุดส่วนที่เพิ่ม
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryPink,
                   shape: RoundedRectangleBorder(
