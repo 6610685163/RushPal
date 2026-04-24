@@ -15,7 +15,6 @@ class StartRunScreen extends StatefulWidget {
 }
 
 class _StartRunScreenState extends State<StartRunScreen> {
-  // === 📍 ตัวแปรแผนที่ (จากโค้ดของคุณ) ===
   final String mapboxAccessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '';
   final String mapStyleId = 'mapbox/dark-v11';
   final MapController _mapController = MapController();
@@ -23,21 +22,19 @@ class _StartRunScreenState extends State<StartRunScreen> {
   LatLng? currentLocation;
   bool _isMapReady = false;
 
-  // === ⏱️ ตัวแปรสถิติการวิ่ง ===
   double totalDistance = 0.0;
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
-  bool hasStarted = false; // เช็คว่าเคยกดปุ่ม Start ใหญ่ไปหรือยัง
+  bool hasStarted = false;
 
   @override
   void initState() {
     super.initState();
     _initLocation();
 
-    // อัปเดต UI (เวลา) ทุกๆ 1 วินาที
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_stopwatch.isRunning) {
-        setState(() {}); // รีเฟรชหน้าจอให้เวลาเดิน
+        setState(() {});
       }
     });
   }
@@ -48,7 +45,6 @@ class _StartRunScreenState extends State<StartRunScreen> {
     super.dispose();
   }
 
-  // === ลอจิก GPS และ Map ===
   Future<void> _initLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -78,27 +74,23 @@ class _StartRunScreenState extends State<StartRunScreen> {
       if (_stopwatch.isRunning) {
         if (routeSegments.isEmpty) {
           routeSegments.add([newPos]);
-        }
-
-        List<LatLng> currentSegment = routeSegments.last;
-        if (currentSegment.isNotEmpty) {
-          double dist = Geolocator.distanceBetween(
-            currentSegment.last.latitude,
-            currentSegment.last.longitude,
-            newPos.latitude,
-            newPos.longitude,
-          );
-
-          if (dist > 50) {
-            currentLocation = newPos;
-            if (_isMapReady) _mapController.move(newPos, 17.0);
-            return;
-          }
-
-          totalDistance += dist;
-          currentSegment.add(newPos);
         } else {
-          currentSegment.add(newPos);
+          List<LatLng> currentSegment = routeSegments.last;
+          if (currentSegment.isNotEmpty) {
+            double dist = Geolocator.distanceBetween(
+              currentSegment.last.latitude,
+              currentSegment.last.longitude,
+              newPos.latitude,
+              newPos.longitude,
+            );
+
+            if (dist < 100) {
+              totalDistance += dist;
+              currentSegment.add(newPos);
+            }
+          } else {
+            currentSegment.add(newPos);
+          }
         }
       }
 
@@ -109,7 +101,6 @@ class _StartRunScreenState extends State<StartRunScreen> {
     });
   }
 
-  // === ลอจิกคำนวณสถิติ ===
   String _formatPace() {
     if (totalDistance == 0) return "0:00";
     double distanceKm = totalDistance / 1000;
@@ -128,15 +119,18 @@ class _StartRunScreenState extends State<StartRunScreen> {
     return "${twoDigits(d.inHours)}:${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
   }
 
-  // === ลอจิกปุ่มกด ===
   void _toggleRun() {
     setState(() {
       hasStarted = true;
       if (_stopwatch.isRunning) {
-        _stopwatch.stop(); // กด Pause
+        _stopwatch.stop();
       } else {
-        _stopwatch.start(); // กด Resume
-        routeSegments.add([]); // ตัดเส้นใหม่
+        _stopwatch.start();
+        List<LatLng> newSegment = [];
+        if (currentLocation != null) {
+          newSegment.add(currentLocation!);
+        }
+        routeSegments.add(newSegment);
       }
     });
   }
@@ -145,7 +139,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
     _stopwatch.stop();
     _timer?.cancel();
 
-    int calories = (totalDistance / 1000 * 60).toInt(); // สูตรจำลอง
+    int calories = (totalDistance / 1000 * 60).toInt();
 
     Navigator.pushReplacement(
       context,
@@ -163,12 +157,12 @@ class _StartRunScreenState extends State<StartRunScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.pureBlack),
           onPressed: () {
             if (_stopwatch.elapsed.inSeconds > 0) {
               _finishRun();
@@ -179,29 +173,36 @@ class _StartRunScreenState extends State<StartRunScreen> {
         ),
         title: const Text(
           "Running",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppTheme.pureBlack,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         centerTitle: true,
       ),
       body: Column(
         children: [
-          // พื้นที่ Map
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: AppTheme.pureBlack, width: 4),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 10),
+                  BoxShadow(
+                    color: AppTheme.pureBlack,
+                    blurRadius: 0,
+                    offset: Offset(0, 6),
+                  ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(26),
                 child: currentLocation == null
                     ? const Center(
                         child: CircularProgressIndicator(
-                          color: AppTheme.primaryRed,
+                          color: AppTheme.primaryPink,
                         ),
                       )
                     : FlutterMap(
@@ -224,19 +225,18 @@ class _StartRunScreenState extends State<StartRunScreen> {
                               'id': mapStyleId,
                             },
                           ),
-                          for (var segment in routeSegments)
-                            if (segment.length > 1)
-                              if (segment.isNotEmpty)
-                                PolylineLayer(
-                                  polylines: [
-                                    Polyline(
-                                      points: segment,
-                                      strokeWidth: 6.0,
-                                      color: AppTheme
-                                          .primaryRed, // เปลี่ยนเส้นเป็นสีแดงตามธีมแอป
-                                    ),
-                                  ],
-                                ),
+                          PolylineLayer(
+                            polylines: routeSegments
+                                .where((segment) => segment.length > 1)
+                                .map(
+                                  (segment) => Polyline(
+                                    points: segment,
+                                    strokeWidth: 6.0,
+                                    color: AppTheme.primaryRed,
+                                  ),
+                                )
+                                .toList(),
+                          ),
                           MarkerLayer(
                             markers: [
                               Marker(
@@ -249,7 +249,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: AppTheme.primaryRed,
-                                      width: 3,
+                                      width: 4,
                                     ),
                                   ),
                                 ),
@@ -261,8 +261,6 @@ class _StartRunScreenState extends State<StartRunScreen> {
               ),
             ),
           ),
-
-          // Stats & Controls ของเพื่อน (เอาข้อมูลจริงมาใส่)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
             decoration: const BoxDecoration(
@@ -278,19 +276,23 @@ class _StartRunScreenState extends State<StartRunScreen> {
             ),
             child: Column(
               children: [
-                // เวลาที่วิ่งจริง
                 Text(
                   _formatTime(_stopwatch.elapsed),
                   style: const TextStyle(
                     fontSize: 60,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
                     fontFamily: 'monospace',
+                    color: AppTheme.textLight,
                   ),
                 ),
-                const Text("Total Time", style: TextStyle(color: Colors.grey)),
+                const Text(
+                  "Total Time",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 30),
-
-                // ตัวเลขสถิติที่เปลี่ยนตามจริง
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -308,20 +310,20 @@ class _StartRunScreenState extends State<StartRunScreen> {
                   ],
                 ),
                 const SizedBox(height: 40),
-
-                // ลอจิกปุ่มกด
                 if (!hasStarted)
-                  _buildLargeButton(Icons.play_arrow, _toggleRun)
+                  _buildLargeButton(Icons.play_arrow_rounded, _toggleRun)
                 else
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildSmallButton(
-                        _stopwatch.isRunning ? Icons.pause : Icons.play_arrow,
+                        _stopwatch.isRunning
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         _toggleRun,
                       ),
                       const SizedBox(width: 30),
-                      _buildLargeButton(Icons.stop, _finishRun),
+                      _buildLargeButton(Icons.stop_rounded, _finishRun),
                       const SizedBox(width: 30),
                       const SizedBox(width: 60),
                     ],
@@ -334,25 +336,21 @@ class _StartRunScreenState extends State<StartRunScreen> {
     );
   }
 
-  // Helper ของ UI
   Widget _buildLargeButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 100,
-        height: 100,
-        decoration: const BoxDecoration(
-          gradient: AppTheme.primaryGradient,
+        width: 90,
+        height: 90,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryPink,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryRed,
-              blurRadius: 15,
-              offset: Offset(0, 5),
-            ),
+          border: Border.all(color: AppTheme.pureBlack, width: 4),
+          boxShadow: const [
+            BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 6)),
           ],
         ),
-        child: Icon(icon, color: Colors.white, size: 50),
+        child: Icon(icon, color: AppTheme.pureBlack, size: 50),
       ),
     );
   }
@@ -361,13 +359,17 @@ class _StartRunScreenState extends State<StartRunScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 60,
-        height: 60,
+        width: 65,
+        height: 65,
         decoration: BoxDecoration(
-          color: Colors.grey[200],
+          color: Colors.white,
           shape: BoxShape.circle,
+          border: Border.all(color: AppTheme.pureBlack, width: 3),
+          boxShadow: const [
+            BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+          ],
         ),
-        child: Icon(icon, color: Colors.black54, size: 30),
+        child: Icon(icon, color: AppTheme.pureBlack, size: 35),
       ),
     );
   }
@@ -380,18 +382,33 @@ class _StartRunScreenState extends State<StartRunScreen> {
           children: [
             Text(
               value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.pureBlack,
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 4, left: 2),
+              padding: const EdgeInsets.only(bottom: 5, left: 2),
               child: Text(
                 unit,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         ),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.grey,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
