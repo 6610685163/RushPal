@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/register_screen.dart';
 import 'package:rushpal/screens/main_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // เพิ่ม
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,7 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      // 🔥 ดักจับ Error ของ Firebase โดยเฉพาะ และปริ้นท์ออก Console
       print("🚨 FIREBASE AUTH ERROR: ${e.code} - ${e.message}");
 
       String errorMessage = "เกิดข้อผิดพลาด กรุณาลองใหม่";
@@ -49,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMessage = "ไม่พบอีเมลนี้ในระบบ";
       } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         errorMessage =
-            "รหัสผ่านไม่ถูกต้อง!"; // <--- ตัวนี้น่าจะเป็นสาเหตุหลักครับ
+            "รหัสผ่านไม่ถูกต้อง!"; 
       } else if (e.code == 'invalid-email') {
         errorMessage = "รูปแบบอีเมลไม่ถูกต้อง";
       }
@@ -61,8 +60,8 @@ class _LoginScreenState extends State<LoginScreen> {
               errorMessage,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            backgroundColor: Colors.red[800], // เปลี่ยนสีให้เห็นชัดๆ
-            behavior: SnackBarBehavior.floating, // ให้ลอยขึ้นมาเหนือคีย์บอร์ด
+            backgroundColor: Colors.red[800],
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -80,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryRed,
+      backgroundColor: AppTheme.backgroundCream,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -96,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   "RushPal",
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppTheme.primaryPink,
                     fontSize: 48,
                     letterSpacing: 1.5,
                   ),
@@ -104,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
                 const Text(
                   "Run with your pal, anywhere.",
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                  style: TextStyle(color: AppTheme.textLight, fontSize: 16),
                 ),
                 const SizedBox(height: 50),
 
@@ -128,36 +127,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {},
                     child: const Text(
                       "Forgot Password?",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppTheme.primaryPink),
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : _login, // เรียกใช้ฟังก์ชัน login
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.primaryRed,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: const Text(
-                      "Login",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                // Login Button - Game Style
+                _GameButton(
+                  label: _isLoading ? "LOGGING IN..." : "LOGIN",
+                  onPressed: _isLoading ? null : _login,
+                  isLoading: _isLoading,
                 ),
 
                 const SizedBox(height: 40),
@@ -165,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Center(
                   child: Text(
                     "Or Login with",
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: AppTheme.textLight),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -207,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Text(
                       "Don't have an account? ",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppTheme.textLight),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -221,10 +201,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text(
                         "Register Now",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppTheme.primaryPink,
                           fontWeight: FontWeight.bold,
                           decoration: TextDecoration.underline,
-                          decorationColor: Colors.white,
+                          decorationColor: AppTheme.primaryPink,
                         ),
                       ),
                     ),
@@ -247,8 +227,15 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.transparent),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppTheme.primaryPink.withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryPink.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
@@ -278,16 +265,91 @@ class _LoginScreenState extends State<LoginScreen> {
         height: 50,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: AppTheme.pureBlack, width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: AppTheme.pureBlack.withOpacity(0.2),
+              blurRadius: 0,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Center(child: child),
+      ),
+    );
+  }
+}
+
+class _GameButton extends StatefulWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  const _GameButton({
+    required this.label,
+    this.onPressed,
+    this.isLoading = false,
+  });
+
+  @override
+  _GameButtonState createState() => _GameButtonState();
+}
+
+class _GameButtonState extends State<_GameButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.onPressed == null ? null : (_) => setState(() => _isPressed = true),
+      onTapUp: widget.onPressed == null ? null : (_) {
+        setState(() => _isPressed = false);
+        widget.onPressed?.call();
+      },
+      onTapCancel: widget.onPressed == null ? null : () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        margin: EdgeInsets.only(top: _isPressed && !widget.isLoading ? 6.0 : 0.0),
+        width: double.infinity,
+        height: 56,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryPink,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: AppTheme.pureBlack,
+            width: 3,
+          ),
+          boxShadow: _isPressed || widget.isLoading
+              ? []
+              : [
+                  BoxShadow(
+                    color: AppTheme.pureBlack,
+                    blurRadius: 0,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+        ),
+        child: Center(
+          child: widget.isLoading
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: AppTheme.pureBlack,
+                    strokeWidth: 3,
+                  ),
+                )
+              : Text(
+                  widget.label,
+                  style: const TextStyle(
+                    color: AppTheme.pureBlack,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+        ),
       ),
     );
   }

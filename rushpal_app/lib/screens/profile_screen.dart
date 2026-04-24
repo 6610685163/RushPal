@@ -8,19 +8,19 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textLight),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "Profile",
           style: TextStyle(
-            color: Colors.black,
+            color: AppTheme.textLight,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -40,12 +40,12 @@ class ProfileScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.grey,
+                      color: AppTheme.primaryPink,
                     ),
                     child: const CircleAvatar(
                       radius: 50,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.person, size: 60, color: Colors.grey),               
+                      backgroundColor: AppTheme.backgroundCream,
+                      child: Icon(Icons.person, size: 60, color: AppTheme.primaryPink),               
                     ),
                   ),
                   Positioned(
@@ -56,15 +56,15 @@ class ProfileScreen extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.grey,
+                        color: AppTheme.primaryPink,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: AppTheme.pureBlack, width: 2),
                       ),
                       child: const Text(
                         "Level 99",
                         style: TextStyle(
                           color:
-                              Colors.white,
+                              AppTheme.pureBlack,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -79,7 +79,11 @@ class ProfileScreen extends StatelessWidget {
             // Name
             const Text(
               "Name",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textLight,
+              ),
             ),
 
             const SizedBox(height: 20),
@@ -92,7 +96,7 @@ class ProfileScreen extends StatelessWidget {
                 Container(
                   height: 30,
                   width: 1,
-                  color: Colors.grey[300],
+                  color: AppTheme.primaryPink.withOpacity(0.3),
                   margin: const EdgeInsets.symmetric(horizontal: 30),
                 ),
                 _buildCountItem("Trophy earned", "6"),
