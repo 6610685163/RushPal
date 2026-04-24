@@ -24,40 +24,25 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack,
       body: _pages[_selectedIndex],
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(25, 0, 25, 30),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 45),
         child: _buildCustomBottomBar(),
       ),
     );
   }
 
   Widget _buildCustomBottomBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(
-              0.1,
-            ),
-            blurRadius: 20,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(Icons.home_rounded, 0),
-          _buildNavItem(Icons.shopping_bag_outlined, 1),
-          _buildNavItem(Icons.bar_chart_rounded, 2),
-          _buildNavItem(Icons.groups_outlined, 3),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment:
+          MainAxisAlignment.spaceBetween,
+      children: [
+        _buildNavItem(Icons.directions_run_rounded, 0),
+        _buildNavItem(Icons.shopping_bag_rounded, 1),
+        _buildNavItem(Icons.bar_chart_rounded, 2),
+        _buildNavItem(Icons.groups_rounded, 3),
+      ],
     );
   }
 
@@ -69,18 +54,32 @@ class _MainScreenState extends State<MainScreen> {
           _selectedIndex = index;
         });
       },
-      child: Container(
-        padding: const EdgeInsets.all(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 72,
+        height: 65,
         decoration: isSelected
             ? BoxDecoration(
-                color: AppTheme.primaryRed.withOpacity(0.1),
-                shape: BoxShape.circle,
+                color: AppTheme.primaryPink.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryPink.withOpacity(0.6),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ],
               )
-            : null,
+            : BoxDecoration(
+                color: AppTheme.darkBlue.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white24, width: 1),
+              ),
         child: Icon(
           icon,
-          color: isSelected ? AppTheme.primaryRed : Colors.grey,
-          size: 28,
+          color: isSelected ? Colors.white : Colors.white54,
+          size: 32,
         ),
       ),
     );

@@ -9,7 +9,6 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  // สร้าง Controller เพื่อเก็บค่า (จำลองข้อมูลเดิมไว้)
   final TextEditingController _fullNameController = TextEditingController(
     text: "Full Name",
   );
@@ -28,21 +27,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "Edit profile",
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 20,
           ),
         ),
       ),
@@ -86,32 +85,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 40),
 
-            // Submit Button
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: () {
-                  // บันทึกข้อมูลแล้วกลับ
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryRed,
+                  backgroundColor: AppTheme.primaryPink,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                  elevation: 0,
+                  elevation: 5,
+                  shadowColor: AppTheme.primaryPink.withOpacity(0.5),
                 ),
                 child: const Text(
                   "SUBMIT",
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
+                    letterSpacing: 1.5,
                   ),
                 ),
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -120,13 +118,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
       child: Text(
         text,
         style: const TextStyle(
-          color: Colors.grey,
+          color: Colors.white54,
           fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -138,20 +136,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8ECF4)),
+        color: AppTheme.darkBlue.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white12),
       ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         style: const TextStyle(
-          color: Colors.black,
+          color: Colors.white,
           fontWeight: FontWeight.bold,
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
         ),
       ),
     );
@@ -163,19 +165,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required ValueChanged<String?> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8ECF4)),
+        color: AppTheme.darkBlue.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white12),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+          dropdownColor: AppTheme.pureBlack,
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
           style: const TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),

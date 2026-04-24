@@ -46,28 +46,21 @@ class _PartyScreenState extends State<PartyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        Navigator.pop(context, partyCode); // ส่งรหัสห้องกลับไปหน้า Home
-      },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-            onPressed: () => Navigator.pop(context, partyCode),
-          ),
-          title: const Text(
-            "Party",
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
+    return Scaffold(
+      backgroundColor: AppTheme.pureBlack, // สีดำ
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Party",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
           ),
           centerTitle: true,
           actions: [
@@ -87,45 +80,14 @@ class _PartyScreenState extends State<PartyScreen> {
             const SizedBox(width: 8),
           ],
         ),
-        body: SafeArea(
-          child: isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: AppTheme.primaryRed),
-                )
-              : partyCode == null
-              ? _buildNoPartyState() // หน้าจอตอนยังไม่มีปาร์ตี้
-              : _buildPartyLobby(), // หน้าจอ Lobby เมื่อมีปาร์ตี้แล้ว
-        ),
-      ),
-    );
-  }
-
-  // --- UI ตอนยังไม่ได้สร้างหรือเข้าร่วมปาร์ตี้ ---
-  Widget _buildNoPartyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.group_add, size: 80, color: Colors.grey),
-          const SizedBox(height: 20),
-          const Text(
-            "You are not in a party",
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-          ),
-          const SizedBox(height: 30),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            onPressed: _createParty,
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: () => _showJoinDialog(context),
             child: const Text(
               "CREATE NEW PARTY",
               style: TextStyle(
-                color: Colors.white,
+                color: AppTheme.primaryPink,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -188,32 +150,35 @@ class _PartyScreenState extends State<PartyScreen> {
               const SizedBox(height: 20),
               const Text(
                 "Party Name",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 8),
-
-              // Party Code Section
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
+                  color: AppTheme.darkBlue.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
                 ),
                 child: Row(
                   children: [
                     const Text(
                       "Party code: ",
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                     Text(
                       partyCode!, // 🌟 โชว์รหัสจริงจากระบบ
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryPink,
                         letterSpacing: 1.2,
                       ),
                     ),
@@ -221,117 +186,41 @@ class _PartyScreenState extends State<PartyScreen> {
                     IconButton(
                       icon: const Icon(
                         Icons.copy,
-                        color: Colors.grey,
+                        color: Colors.white54,
                         size: 20,
                       ),
-                      onPressed: () {
-                        /* Logic Copy รหัส */
-                      },
+                      onPressed: () {},
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-              Text(
-                "Members (${members.length}/4)",
-                style: const TextStyle(
+              const Text(
+                "Members",
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Member List (ดึงข้อมูลจริงจาก Firestore)
               Expanded(
                 child: ListView.separated(
                   itemCount: members.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    String uid = members.keys.elementAt(index);
-                    return _buildMemberCard(members[uid], uid);
-                  },
+                  itemBuilder: (context, index) => _buildMemberCard(index),
                 ),
               ),
-
-              // ปุ่ม Leave Party
-              const SizedBox(height: 10),
-              // --- 🌟 โซนปุ่มกด Ready และ Leave ---
-              Row(
-                children: [
-                  // ปุ่ม READY / CANCEL
-                  // 🌟 2. ปุ่ม START (สำหรับหัวหน้า) หรือ READY (สำหรับลูกทีม)
-                  // ปุ่ม START / READY
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user == null) return;
-
-                          if (isLeader) {
-                            // โลจิกของหัวหน้าห้อง: 🌟 เปลี่ยนมาเช็ค canStart แทน
-                            if (canStart) {
-                              bool success = await PartyService.startParty(
-                                partyCode: partyCode!,
-                              );
-
-                              if (!success) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "เริ่มเกมไม่สำเร็จ! เช็คเซิร์ฟเวอร์ Node.js หรือเน็ตมือถือ",
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("รอให้ทุกคนกด Ready ก่อน!"),
-                                ),
-                              );
-                            }
-                          } else {
-                            // โลจิกของลูกทีม: กดเพื่อ Ready/Cancel
-                            bool myReadyStatus =
-                                members[user.uid]?['isReady'] ?? false;
-                            await PartyService.toggleReady(
-                              partyCode: partyCode!,
-                              uid: user.uid,
-                              isReady: !myReadyStatus,
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          // 🌟 เปลี่ยนสีปุ่ม: ให้ใช้ canStart เช็ค
-                          backgroundColor: isLeader
-                              ? (canStart ? Colors.green : Colors.grey)
-                              : ((members[currentUserUid]?['isReady'] ?? false)
-                                    ? Colors.orange
-                                    : Colors.green),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Text(
-                          isLeader
-                              ? "START RUN"
-                              : ((members[currentUserUid]?['isReady'] ?? false)
-                                    ? "CANCEL"
-                                    : "READY"),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryPink,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -377,6 +266,57 @@ class _PartyScreenState extends State<PartyScreen> {
               const SizedBox(height: 20),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showJoinDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppTheme.darkBlue,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AppTheme.primaryPink)
+          ),
+          title: const Text(
+            "Join Party",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: "Enter party code",
+              hintStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: AppTheme.pureBlack,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryPink,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text("Join", style: TextStyle(color: Colors.white)),
+            ),
+          ],
         );
       },
     );
@@ -389,25 +329,23 @@ class _PartyScreenState extends State<PartyScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.darkBlue.withOpacity(0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isReady ? Colors.green.withOpacity(0.3) : Colors.grey[200]!,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.white12),
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.grey,
-            child: Icon(Icons.person, color: Colors.white),
+          Container(
+            width: 50,
+            height: 50,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.pureBlack,
+              image: DecorationImage(
+                image: AssetImage('assets/images/home_bg.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -421,6 +359,7 @@ class _PartyScreenState extends State<PartyScreen> {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: Colors.white,
                       ),
                     ),
                     if (isLeader) ...[
@@ -429,9 +368,9 @@ class _PartyScreenState extends State<PartyScreen> {
                     ],
                   ],
                 ),
-                const Text(
-                  "Lv. 1",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                Text(
+                  levels[index],
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -439,13 +378,13 @@ class _PartyScreenState extends State<PartyScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: isReady ? Colors.green.withOpacity(0.1) : Colors.grey[100],
+              color: isLeader ? Colors.green.withOpacity(0.2) : Colors.white12,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               isLeader ? "Leader" : (isReady ? "Ready" : "Waiting"),
               style: TextStyle(
-                color: isLeader || isReady ? Colors.green : Colors.grey,
+                color: isLeader ? Colors.greenAccent : Colors.white54,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),

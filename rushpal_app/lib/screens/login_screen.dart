@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/register_screen.dart';
 import 'package:rushpal/screens/main_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // เพิ่ม
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,13 +12,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // เพิ่ม Controller
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  bool _isLoading = false;
-
-  // ฟังก์ชัน Login
   Future<void> _login() async {
     setState(() {
       _isLoading = true; // เริ่มหมุน Loading
@@ -80,7 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryRed,
+      // เปลี่ยนพื้นหลังเป็นสีดำของธีม เพื่อให้ UI ลอยเด่นขึ้นมา
+      backgroundColor: AppTheme.pureBlack,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -99,6 +96,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: Colors.white,
                     fontSize: 48,
                     letterSpacing: 1.5,
+                    shadows: [
+                      BoxShadow(
+                        color: AppTheme.primaryPink.withOpacity(0.5),
+                        blurRadius: 20,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -108,18 +111,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 50),
 
-                // Input: Email (ใส่ Controller)
                 _buildTextField(
                   hintText: "Enter your email",
                   controller: emailController,
+                  icon: Icons.email_outlined,
                 ),
                 const SizedBox(height: 16),
 
-                // Input: Password (ใส่ Controller)
                 _buildTextField(
                   hintText: "Enter your password",
                   isPassword: true,
                   controller: passwordController,
+                  icon: Icons.lock_outline,
                 ),
 
                 Align(
@@ -128,7 +131,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {},
                     child: const Text(
                       "Forgot Password?",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(
+                        color: AppTheme.primaryPink,
+                      ), 
                     ),
                   ),
                 ),
@@ -139,22 +144,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : _login, // เรียกใช้ฟังก์ชัน login
+                    onPressed: _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.primaryRed,
+                      backgroundColor: AppTheme.primaryPink,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(
+                          15,
+                        ), 
                       ),
-                      elevation: 2,
+                      elevation: 5,
+                      shadowColor: AppTheme.primaryPink.withOpacity(0.5),
                     ),
                     child: const Text(
-                      "Login",
+                      "START",
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
                       ),
                     ),
                   ),
@@ -184,7 +191,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.blue,
                             ),
                       ),
-                      color: Colors.white,
+                      color: AppTheme.darkBlue.withOpacity(
+                        0.8,
+                      ), // ปุ่ม Social สีมืด
                       onTap: () {},
                     ),
                     const SizedBox(width: 20),
@@ -194,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white,
                         size: 30,
                       ),
-                      color: const Color(0xFF1877F2),
+                      color: const Color(0xFF1877F2).withOpacity(0.8),
                       onTap: () {},
                     ),
                   ],
@@ -207,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Text(
                       "Don't have an account? ",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white70),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -221,10 +230,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text(
                         "Register Now",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppTheme.primaryPink,
                           fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.white,
                         ),
                       ),
                     ),
@@ -238,29 +245,33 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ปรับแก้รับ Controller
   Widget _buildTextField({
     required String hintText,
     bool isPassword = false,
     required TextEditingController controller,
+    required IconData icon,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.transparent),
+        color: AppTheme.darkBlue.withOpacity(0.6), 
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword,
+        style: const TextStyle(
+          color: Colors.white,
+        ),
         decoration: InputDecoration(
           border: InputBorder.none,
+          prefixIcon: Icon(icon, color: Colors.white54),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+            horizontal: 20,
+            vertical: 18,
           ),
           hintText: hintText,
-          hintStyle: const TextStyle(color: Colors.grey),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
         ),
       ),
     );
@@ -278,14 +289,8 @@ class _LoginScreenState extends State<LoginScreen> {
         height: 50,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
         child: Center(child: child),
       ),

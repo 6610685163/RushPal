@@ -74,79 +74,45 @@ class _FriendScreenState extends State<FriendScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
         title: const Text(
           "Friends",
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.person_add,
-                  color: AppTheme.primaryRed,
-                  size: 28,
-                ),
-                onPressed: () {
-                  // เมื่อกดปุ่มนี้ ให้โชว์หน้าต่าง Friend Requests ขึ้นมา
-                  _showFriendRequestsSheet(context);
-                },
-              ),
-              // 🌟 ถ้ามีคนขอแอดมา ให้โชว์จุดแดงพร้อมตัวเลข
-              if (_pendingRequests.isNotEmpty)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '${_pendingRequests.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.person_add, color: AppTheme.primaryPink),
+            onPressed: () {},
           ),
           const SizedBox(width: 10),
         ],
       ),
       body: Column(
         children: [
-          // Search Bar
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: AppTheme.darkBlue.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.white12),
               ),
-              child: TextField(
-                controller: _searchController,
-                // สั่งให้ค้นหาเมื่อกดปุ่ม Enter/Done บนคีย์บอร์ด
-                onSubmitted: _searchUser,
+              child: const TextField(
+                style: TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  icon: const Icon(Icons.search, color: Colors.grey),
-                  hintText: "Search username...",
+                  icon: Icon(Icons.search, color: Colors.white54),
+                  hintText: "Search friend",
+                  hintStyle: TextStyle(color: Colors.white38),
                   border: InputBorder.none,
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.clear, color: Colors.grey, size: 20),
@@ -159,215 +125,14 @@ class _FriendScreenState extends State<FriendScreen> {
               ),
             ),
           ),
-
-          // แสดงสถานะ Loading ระหว่างรอ API
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: CircularProgressIndicator(color: AppTheme.primaryRed),
-            ),
-
-          // แสดงผลลัพธ์การค้นหา (ถ้าเจอ)
-          if (!_isLoading && _searchedUser != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 10.0,
-              ),
-              child: _buildSearchResultCard(),
-            ),
-
-          // แสดงข้อความหาไม่เจอ
-          if (!_isLoading &&
-              _searchController.text.isNotEmpty &&
-              _searchedUser == null)
-            const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Text(
-                "User not found",
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "My Friends",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ),
-          ),
-
-          // Friend List (อันเดิมของคุณ)
           Expanded(
-            child: _isLoadingFriends
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryRed,
-                    ),
-                  )
-                : _myFriends.isEmpty
-                ? const Center(child: Text("You don't have any friends yet."))
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: _myFriends.length,
-                    separatorBuilder: (c, i) => const SizedBox(height: 15),
-                    itemBuilder: (context, index) {
-                      final friend = _myFriends[index];
-                      return _buildFriendItem(friend);
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- UI หน้าต่างโชว์คำขอเป็นเพื่อน (Bottom Sheet) ---
-  void _showFriendRequestsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (BuildContext sheetContext) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          height: MediaQuery.of(context).size.height * 0.5, // สูงครึ่งจอ
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Friend Requests",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-
-              // เช็คว่ามีคนแอดมาไหม
-              _pendingRequests.isEmpty
-                  ? const Expanded(
-                      child: Center(
-                        child: Text(
-                          "No pending requests.",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    )
-                  : Expanded(
-                      child: ListView.separated(
-                        itemCount: _pendingRequests.length,
-                        separatorBuilder: (c, i) => const Divider(),
-                        itemBuilder: (context, index) {
-                          final reqUser = _pendingRequests[index];
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const CircleAvatar(
-                              backgroundColor: Colors.black12,
-                              child: Icon(Icons.person, color: Colors.grey),
-                            ),
-                            title: Text(
-                              reqUser['username'] ?? 'Unknown',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text("Level ${reqUser['level'] ?? 1}"),
-                            trailing: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryRed,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              onPressed: () async {
-                                // 🌟 1. ดึง UID ของตัวเรา
-                                final user = FirebaseAuth.instance.currentUser;
-                                if (user != null) {
-                                  // 🌟 2. ปิดหน้าต่าง Sheet ลงไปก่อน
-                                  Navigator.pop(sheetContext);
-
-                                  setState(() => _isLoadingFriends = true);
-
-                                  // 🌟 3. เรียก API ยอมรับเพื่อน
-                                  bool success =
-                                      await FriendService.acceptRequest(
-                                        user.uid,
-                                        reqUser['uid'],
-                                      );
-
-                                  if (success) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'เพิ่มเป็นเพื่อนสำเร็จ!',
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    // 🌟 4. โหลดรายชื่อเพื่อนใหม่ (ชื่อจะไปโผล่ใน My Friends ทันที)
-                                    _loadFriends();
-                                  }
-                                }
-                              },
-                              child: const Text(
-                                "Accept",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // --- UI การ์ดแสดงผลลัพธ์ตอนค้นหาเจอ ---
-  Widget _buildSearchResultCard() {
-    bool isAlreadyFriend = _myFriends.any(
-      (friend) => friend['uid'] == _searchedUser!['uid'],
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withOpacity(0.05), // ไฮไลท์สีแดงอ่อนๆ
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppTheme.primaryRed.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: AppTheme.primaryRed),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _searchedUser!['username'] ?? 'Unknown',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  "Level ${_searchedUser!['level'] ?? 1}",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: 10,
+              separatorBuilder: (c, i) => const SizedBox(height: 15),
+              itemBuilder: (context, index) {
+                return _buildFriendItem(index);
+              },
             ),
           ),
 
@@ -468,33 +233,30 @@ class _FriendScreenState extends State<FriendScreen> {
     );
   }
 
-  // --- UI รายชื่อเพื่อนเดิมของคุณ ---
-  Widget _buildFriendItem(Map<String, dynamic> friend) {
+  Widget _buildFriendItem(int index) {
+    bool isOnline = index % 2 == 0;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.darkBlue.withOpacity(0.6),
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.white12),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: AppTheme.primaryGradient,
+              border: Border.all(
+                color: isOnline ? Colors.greenAccent : Colors.white24,
+                width: 2,
+              ),
             ),
             child: const CircleAvatar(
               radius: 25,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Colors.grey),
+              backgroundColor: AppTheme.pureBlack,
+              child: Icon(Icons.person, color: AppTheme.primaryPink),
             ),
           ),
           const SizedBox(width: 15),
@@ -505,13 +267,15 @@ class _FriendScreenState extends State<FriendScreen> {
                 Text(
                   friend['username'] ?? "Unknown",
                   style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  "Level ${friend['level'] ?? 1}",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  "Level ${99 - index}",
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -519,13 +283,15 @@ class _FriendScreenState extends State<FriendScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
+              color: isOnline
+                  ? Colors.greenAccent.withOpacity(0.15)
+                  : Colors.white10,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              "Online",
+              isOnline ? "Online" : "Offline",
               style: TextStyle(
-                color: Colors.green[700],
+                color: isOnline ? Colors.greenAccent : Colors.white54,
                 fontWeight: FontWeight.bold,
                 fontSize: 10,
               ),
