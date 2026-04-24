@@ -16,24 +16,64 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  bool _isLoading = false;
+
   // ฟังก์ชัน Login
   Future<void> _login() async {
+    setState(() {
+      _isLoading = true; // เริ่มหมุน Loading
+    });
+
     try {
+      print("🔥 1. กำลังส่งข้อมูลอีเมล/รหัสผ่านไปที่ Firebase...");
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
+      print("✅ 2. Firebase ยืนยันตัวตนสำเร็จ!");
+
       if (mounted) {
+        print("🚀 3. กำลังนำทางไปหน้า MainScreen...");
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       }
+    } on FirebaseAuthException catch (e) {
+      // 🔥 ดักจับ Error ของ Firebase โดยเฉพาะ และปริ้นท์ออก Console
+      print("🚨 FIREBASE AUTH ERROR: ${e.code} - ${e.message}");
+
+      String errorMessage = "เกิดข้อผิดพลาด กรุณาลองใหม่";
+      if (e.code == 'user-not-found') {
+        errorMessage = "ไม่พบอีเมลนี้ในระบบ";
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        errorMessage =
+            "รหัสผ่านไม่ถูกต้อง!"; // <--- ตัวนี้น่าจะเป็นสาเหตุหลักครับ
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "รูปแบบอีเมลไม่ถูกต้อง";
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMessage,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.red[800], // เปลี่ยนสีให้เห็นชัดๆ
+            behavior: SnackBarBehavior.floating, // ให้ลอยขึ้นมาเหนือคีย์บอร์ด
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login failed: ${e.toString()}")));
+      print("🚨 UNKNOWN ERROR: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false; // หยุดหมุน Loading ไม่ว่าจะสำเร็จหรือพัง
+        });
+      }
     }
   }
 
@@ -99,7 +139,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _login, // เรียกใช้ฟังก์ชัน login
+                    onPressed: _isLoading
+                        ? null
+                        : _login, // เรียกใช้ฟังก์ชัน login
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: AppTheme.primaryRed,

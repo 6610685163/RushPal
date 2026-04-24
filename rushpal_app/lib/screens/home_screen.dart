@@ -8,6 +8,7 @@ import 'start_run_screen.dart';
 import 'party_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rushpal/services/party_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final O3DController _controller = O3DController();
   String username = "Loading...";
+
+  String? currentPartyCode;
 
   @override
   void initState() {
@@ -138,6 +141,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+
+            _buildInviteListener(),
+
+            // 🌟 3. เพิ่ม Layer โชว์รายชื่อเพื่อนลอยฟ้า (จะโชว์ก็ต่อเมื่อ currentPartyCode != null)
+            if (currentPartyCode != null)
+              Positioned(
+                top: 100, // ปรับความสูงให้อยู่ใต้ Header
+                right: 20,
+                child: _buildRealtimePartyList(),
+              ),
           ],
         ),
       ),
@@ -157,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // กล่องล่องหนด้านซ้าย 
+          // กล่องล่องหนด้านซ้าย
           // ใส่ไว้เพื่อถ่วงน้ำหนักให้ปุ่ม START อยู่ตรงกลางหน้าจอเป๊ะๆ
           const SizedBox(width: totalSideOffset),
 
@@ -208,11 +221,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // ปุ่ม Party
           GestureDetector(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              final resultCode = await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const PartyScreen()),
+                MaterialPageRoute(
+                  builder: (context) =>
+                      PartyScreen(initialPartyCode: currentPartyCode),
+                ),
               );
+
+              setState(() {
+                currentPartyCode = resultCode;
+              });
             },
             child: Container(
               width: partyButtonSize,
@@ -402,6 +422,226 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- UI 1: ระบบดักจับคำเชิญ และแสดง Popup แบบ Real-time ---
+  Widget _buildInviteListener() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return const SizedBox.shrink();
+
+    return StreamBuilder<DocumentSnapshot>(
+      // ดักฟังการเปลี่ยนแปลงในกล่องจดหมายของเราตลอดเวลา
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists)
+          return const SizedBox.shrink();
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final List<dynamic> invites = userData['partyInvites'] ?? [];
+
+        // ถ้าไม่มีใครเชิญมา ก็ไม่ต้องโชว์อะไร
+        if (invites.isEmpty) return const SizedBox.shrink();
+
+        // 🌟 ถ้ามีคนเชิญมา ดึงใบแรกสุดมาโชว์เป็น Popup กลางจอ!
+        final invite = invites.first;
+
+        return Positioned(
+          top: 130, // ให้ลอยอยู่ตรงหน้าอกตัวละคร 3D
+          left: 20,
+          right: 20,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.85), // สีดำโปร่งแสงดูลึกลับ
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: AppTheme.primaryRed, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryRed.withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.celebration,
+                          color: AppTheme.primaryRed,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Party Invite!",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            Text(
+                              "${invite['hostName']} ชวนคุณเข้าปาร์ตี้!",
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // ปุ่มปฏิเสธ (Decline)
+                      TextButton(
+                        onPressed: () async {
+                          // ลบบัตรเชิญทิ้งเฉยๆ
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(currentUser.uid)
+                              .update({
+                                'partyInvites': FieldValue.arrayRemove([
+                                  invite,
+                                ]),
+                              });
+                        },
+                        child: const Text(
+                          "Decline",
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      ),
+                      // ปุ่มยอมรับ (Accept)
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryRed,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 30,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: () async {
+                          // เรียก API กดยอมรับ
+                          bool success = await PartyService.acceptInvite(
+                            partyId: invite['partyId'],
+                            myUid: currentUser.uid,
+                            myUsername: username,
+                            mySkinId:
+                                'skin_m_1', // อนาคตค่อยดึงค่าสกินจริงมาใส่
+                            inviteObject: invite,
+                          );
+
+                          if (success) {
+                            setState(() {
+                              // 🌟 ไฮไลท์! พอเข้าห้องสำเร็จ เปลี่ยนรหัสห้องให้แอปจำไว้
+                              currentPartyCode = invite['partyId'];
+                            });
+                          }
+                        },
+                        child: const Text(
+                          "ACCEPT",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- UI 2: ระบบโชว์การ์ดชื่อเพื่อนลอยฟ้าแบบ Real-time ---
+  Widget _buildRealtimePartyList() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('parties')
+          .doc(currentPartyCode)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists)
+          return const SizedBox.shrink();
+
+        var partyData = snapshot.data!.data() as Map<String, dynamic>;
+        var members = partyData['members'] as Map<String, dynamic>;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: members.entries.map((entry) {
+            String uid = entry.key;
+            Map<String, dynamic> data = entry.value;
+            bool isReady = data['isReady'] ?? false;
+
+            // ซ่อนชื่อเราเอง
+            if (uid == FirebaseAuth.instance.currentUser!.uid)
+              return const SizedBox.shrink();
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isReady ? Colors.green : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircleAvatar(
+                    radius: 12,
+                    backgroundColor: Colors.grey,
+                    child: Icon(Icons.person, size: 16, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    data['username'] ?? 'Unknown',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }
