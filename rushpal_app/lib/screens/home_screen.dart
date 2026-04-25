@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ตัวแปรสำหรับข้อมูล Database
   int userLevel = 1;
   int userPoints = 0;
+  int userExp = 0; // 💡 เพิ่มตัวแปรเก็บ EXP
   StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   String? currentPartyCode;
@@ -37,8 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _listenToUserData(); // เปลี่ยนมาใช้ฟังก์ชันแบบ Real-time
-    _checkExistingParty(); // เรียกใช้ฟังก์ชันเช็คปาร์ตี้ค้างตั้งแต่เปิดหน้าจอ
+    _listenToUserData(); 
+    _checkExistingParty(); 
   }
 
   @override
@@ -48,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // ฟังก์ชันเช็คว่าเราเคยเข้าร่วมปาร์ตี้ไว้แล้วหรือยัง
   Future<void> _checkExistingParty() async {
     final prefs = await SharedPreferences.getInstance();
     final savedPartyCode = prefs.getString('partyCode');
@@ -58,12 +58,11 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           currentPartyCode = savedPartyCode;
         });
-        _loadPartyMembers(); // ถ้ามีรหัสห้อง ให้โหลดโมเดลเพื่อนมาโชว์เลย
+        _loadPartyMembers(); 
       }
     }
   }
 
-  // ฟังก์ชันดึงข้อมูลผู้ใช้แบบ Real-time (อัปเดตเงิน/เลเวลทันที)
   void _listenToUserData() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -81,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
             username = data['username'] ?? "User";
             userLevel = data['level'] ?? 1;
             userPoints = data['points'] ?? 0;
+            userExp = data['exp'] ?? 0; // 💡 ดึงข้อมูล EXP มาจาก Firebase
           });
         }
 
@@ -160,7 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             });
 
-            // ถ้าระบบพบว่าเราโดนเตะ หรือออกห้องไปแล้ว ให้เคลียร์ข้อมูลทิ้ง
             if (!isMeStillInParty) {
               if (mounted) {
                 setState(() {
@@ -180,7 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
               });
             }
           } else {
-            // ถ้าห้องปาร์ตี้โดนยุบทิ้ง (เอกสารใน Firestore หายไป)
             if (mounted) {
               setState(() {
                 currentPartyCode = null;
@@ -213,15 +211,12 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppTheme.backgroundCream,
         body: Stack(
           children: [
-            // 1. พื้นหลัง
             Positioned.fill(
               child: Image.asset(
                 'assets/images/home_bg.jpg',
                 fit: BoxFit.cover,
               ),
             ),
-
-            // 2. โซนตัวละคร (1-3 คนเป็นตัว V, 4 คนเป็นหน้ากระดาน)
             Positioned(
               bottom: 160,
               left: 0,
@@ -265,9 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             O3D(
-                              // เพิ่มเวลาเข้าไปใน ValueKey เพื่อบังคับให้รีโหลดเสมอเมื่อข้อมูลเปลี่ยน
                               key: ValueKey("home_char_${skin.id}_$index"),
-                              // เปลี่ยนจาก _controller มาเป็นการเช็คว่าถ้าเป็นตัวเรา ถึงใช้ _controller ถ้าเป็นเพื่อนไม่ต้องใช้
                               controller: index == 0 ? _controller : null,
                               src: skin.modelPath,
                               autoPlay: true,
@@ -314,8 +307,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-            
-            // 3. UI HUD และปุ่ม Start
             SafeArea(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -345,7 +336,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(builder: (c) => const ProfileScreen()),
                 ),
                 child: Container(
-                  width: 190,
+                  width: 210, // ปรับความกว้างนิดนึงให้พอดีกับข้อความ EXP
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.85),
@@ -384,27 +375,59 @@ class _HomeScreenState extends State<HomeScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: const LinearProgressIndicator(
-                                value: 0.7,
-                                minHeight: 6,
-                                backgroundColor: AppTheme.backgroundCream,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppTheme.primaryPink,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            // อัปเดต เลเวลตรงนี้
-                            Text(
-                              "Lv. $userLevel",
-                              style: const TextStyle(
-                                color: AppTheme.primaryPink,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            const SizedBox(height: 6), // 💡 เพิ่มช่องไฟนิดหน่อย
+                            
+                            // 💡 ระบบคำนวณหลอด EXP แบบ Real-time
+                            Builder(
+                              builder: (context) {
+                                // ⚠️ ถ้าตอนเทสใน Node.js ตั้งไว้ที่ 50 ให้แก้เลข 5000 ตรงนี้เป็น 50 ชั่วคราวด้วยนะครับ
+                                int expNeeded = userLevel * 50; 
+                                
+                                // ป้องกันการหารด้วย 0 และบังคับไม่ให้หลอดเกิน 1.0 (100%)
+                                double progress = expNeeded > 0 
+                                    ? (userExp / expNeeded).clamp(0.0, 1.0) 
+                                    : 0.0;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: LinearProgressIndicator(
+                                        value: progress, // ใช้ค่าที่คำนวณจริง
+                                        minHeight: 8, // 💡 หนาขึ้นเห็นชัดกว่าเดิม
+                                        backgroundColor: Colors.grey.shade300, // 💡 พื้นหลังสีเทาให้ตัดกับชมพู
+                                        valueColor: const AlwaysStoppedAnimation<Color>(
+                                          AppTheme.primaryPink,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          "Lv. $userLevel",
+                                          style: const TextStyle(
+                                            color: AppTheme.primaryPink,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        // 💡 โชว์ตัวเลข EXP ให้เห็นชัดๆ ว่าต้องวิ่งอีกเท่าไหร่
+                                        Text(
+                                          "$userExp / $expNeeded EXP",
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              }
                             ),
                           ],
                         ),
@@ -414,7 +437,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // อัปเดต เงินตรงนี้
               _buildBadge(
                 "$userPoints G",
                 Icons.monetization_on_rounded,
