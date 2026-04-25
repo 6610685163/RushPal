@@ -24,6 +24,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final O3DController _controller = O3DController();
   String username = "Loading...";
+  
+  // ตัวแปรสำหรับข้อมูล Database
+  int userLevel = 1;
+  int userPoints = 0;
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   String? currentPartyCode;
   List<Skin> partyMembersSkins = [];
@@ -32,12 +37,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    loadUserData();
+    _listenToUserData(); // เปลี่ยนมาใช้ฟังก์ชันแบบ Real-time
     _checkExistingParty(); // เรียกใช้ฟังก์ชันเช็คปาร์ตี้ค้างตั้งแต่เปิดหน้าจอ
   }
 
   @override
   void dispose() {
+    _userSubscription?.cancel();
     _partySubscription?.cancel();
     super.dispose();
   }
@@ -57,18 +63,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> loadUserData() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
+  // ฟังก์ชันดึงข้อมูลผู้ใช้แบบ Real-time (อัปเดตเงิน/เลเวลทันที)
+  void _listenToUserData() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-
+    _userSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((doc) {
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
+        
+        if (mounted) {
+          setState(() {
+            username = data['username'] ?? "User";
+            userLevel = data['level'] ?? 1;
+            userPoints = data['points'] ?? 0;
+          });
+        }
+
         if (data.containsKey('characterId') && data.containsKey('skinId')) {
           try {
             final foundChar = myCharacters.firstWhere(
@@ -82,7 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(() {
                 PlayerState.currentCharacter.value = foundChar;
                 PlayerState.currentSkin.value = foundSkin;
-                username = data['username'] ?? "User";
               });
             }
           } catch (e) {
@@ -94,9 +108,9 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         _navigateToSelectCharacter();
       }
-    } catch (e) {
+    }, onError: (e) {
       if (mounted) setState(() => username = "Guest");
-    }
+    });
   }
 
   void _loadPartyMembers() {
@@ -208,7 +222,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // 2. โซนตัวละคร (1-3 คนเป็นตัว V, 4 คนเป็นหน้ากระดาน)
-            // 2. โซนตัวละคร (1-3 คนเป็นตัว V, 4 คนเป็นหน้ากระดาน)
             Positioned(
               bottom: 160,
               left: 0,
@@ -238,23 +251,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Stack(
                           alignment: Alignment.bottomCenter,
                           children: [
-                            // 🌟 แก้ไขเงาให้เป็นแบบ 2D เหมือนหน้า Market
                             Positioned(
                               bottom: shadowBottom,
                               child: Container(
-                                width: index == 0
-                                    ? 140
-                                    : 100, // ขนาดกว้างตามตัวละคร
+                                width: index == 0 ? 140 : 100,
                                 height: 18,
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(
-                                    0.12,
-                                  ), // 🌟 เปลี่ยนความเข้มเป็น 0.12
+                                  color: Colors.black.withOpacity(0.12),
                                   borderRadius: const BorderRadius.all(
-                                    Radius.elliptical(
-                                      80,
-                                      15,
-                                    ), // 🌟 ปรับองศาวงรีให้เป็น 2D แบนๆ
+                                    Radius.elliptical(80, 15),
                                   ),
                                 ),
                               ),
@@ -390,9 +395,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              "Lv. 99",
-                              style: TextStyle(
+                            // อัปเดต เลเวลตรงนี้
+                            Text(
+                              "Lv. $userLevel",
+                              style: const TextStyle(
                                 color: AppTheme.primaryPink,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -406,8 +412,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 10),
+              // อัปเดต เงินตรงนี้
               _buildBadge(
-                "1,000",
+                "$userPoints G",
                 Icons.monetization_on_rounded,
                 AppTheme.primaryRed,
               ),
