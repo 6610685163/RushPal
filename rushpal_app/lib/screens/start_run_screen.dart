@@ -6,6 +6,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'run_complete_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'party_result_screen.dart';
 
 class StartRunScreen extends StatefulWidget {
   final String? partyCode;
@@ -136,24 +140,99 @@ class _StartRunScreenState extends State<StartRunScreen> {
     });
   }
 
-  void _finishRun() {
+  // 🌟 เปลี่ยนให้เป็น Future<void> และ async เพราะเราต้องรอยิง API
+  Future<void> _finishRun() async {
     _stopwatch.stop();
     _timer?.cancel();
 
+    // 1. เตรียมข้อมูลสถิติ
+    double finalDistance = double.parse(
+      (totalDistance / 1000).toStringAsFixed(2),
+    );
     int calories = (totalDistance / 1000 * 60).toInt();
+    int totalSeconds = _stopwatch.elapsed.inSeconds;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RunCompleteScreen(
-          duration: _stopwatch.elapsed,
-          distance: double.parse((totalDistance / 1000).toStringAsFixed(2)),
-          calories: calories,
-          routeSegments: routeSegments,
-          partyCode: widget.partyCode,
-        ),
+    // คำนวณ Pace แบบ Decimal (นาทีต่อกิโลเมตร)
+    double paceDecimal = finalDistance > 0
+        ? (totalSeconds / 60.0) / finalDistance
+        : 0.0;
+
+    // โชว์ Loading UI ระหว่างส่งข้อมูล (เผื่อเน็ตช้า)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryPink),
       ),
     );
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // 🌟 2. ยิงข้อมูลสถิติเข้า Supabase (เก็บตาราง runs)
+        await Supabase.instance.client.from('runs').insert({
+          'user_id': user.uid,
+          'distance': finalDistance,
+          'pace': double.parse(paceDecimal.toStringAsFixed(2)),
+          'duration_seconds': totalSeconds,
+          'calories': calories,
+          'partycode': widget
+              .partyCode, // ถ้าวิ่งเดี่ยว ค่านี้จะเป็น null ไปเองตามธรรมชาติ
+        });
+
+        // 🌟 3. แยกลอจิก: ถ้าเป็นการวิ่งแบบ Party
+        if (widget.partyCode != null) {
+          // อัปเดต Firestore บอกเพื่อนในห้องว่า "ฉันวิ่งเสร็จแล้วนะ!"
+          await FirebaseFirestore.instance
+              .collection('parties')
+              .doc(widget.partyCode)
+              .update({'members.${user.uid}.status': 'finished'});
+
+          if (mounted) {
+            Navigator.pop(context); // ปิด Loading
+            // วาร์ปไปหน้า Party Result (หน้ารวมพลคนวิ่งตี้)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                // ไว้เรามาสร้างไฟล์นี้ด้วยกันสเต็ปต่อไปครับ
+                builder: (context) =>
+                    PartyResultScreen(partyCode: widget.partyCode!),
+              ),
+            );
+          }
+          return; // จบการทำงาน ไม่ต้องไปรันโค้ดด้านล่างต่อ
+        }
+      }
+    } catch (e) {
+      print('Error saving run data: $e');
+      // 🌟 เพิ่ม SnackBar ให้มันโชว์ Error บนหน้าจอ
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("เกิดข้อผิดพลาดในการส่งข้อมูล: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
+    if (mounted) {
+      Navigator.pop(context); // ปิด Loading
+
+      // 🌟 4. แยกลอจิก: ถ้าเป็นการวิ่งเดี่ยว (Solo) หรือเกิด Error ให้มาหน้า Result ปกติ
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RunCompleteScreen(
+            duration: _stopwatch.elapsed,
+            distance: finalDistance,
+            calories: calories,
+            routeSegments: routeSegments,
+            partyCode: widget.partyCode,
+          ),
+        ),
+      );
+    }
   }
 
   @override
