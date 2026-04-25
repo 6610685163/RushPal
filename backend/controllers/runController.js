@@ -1,53 +1,40 @@
 const supabase = require('../config/supabase');
 
-// 1. ฟังก์ชันบันทึกข้อมูลวิ่ง (แก้ไขเพิ่ม calories)
 exports.saveRunResult = async (req, res) => {
     try {
         const { user_id, distance, pace, duration_seconds, calories } = req.body;
 
         const { data, error } = await supabase
             .from('runs')
-            .insert([
-                {
-                    user_id: user_id,
-                    distance: distance,
-                    pace: pace,
-                    duration_seconds: duration_seconds,
-                    calories: calories // 👈 เพิ่มบรรทัดนี้
-                }
-            ]);
+            .insert([{ user_id, distance, pace, duration_seconds, calories }]);
 
         if (error) throw error;
-        res.status(201).json({ message: "บันทึกข้อมูลการวิ่งสำเร็จ", data });
+        res.status(201).json({ message: "บันทึกข้อมูลสำเร็จ", data });
     } catch (error) {
-        console.error("❌ Error saving to Supabase:", error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// 2. ฟังก์ชันใหม่! สำหรับดึงสถิติ (รายวัน, สัปดาห์, เดือน)
 exports.getUserStats = async (req, res) => {
     try {
         const { user_id } = req.params;
-        const { time_frame } = req.query; // รับค่า 'daily', 'weekly', 'monthly'
+        const { time_frame } = req.query;
 
-        // คำนวณหาวันที่เริ่มต้น (Start Date) ตาม Time Frame
         let startDate = new Date();
         if (time_frame === 'daily') {
-            startDate.setHours(0, 0, 0, 0); // เริ่มต้นเที่ยงคืนของวันนี้
+            startDate.setHours(0, 0, 0, 0);
         } else if (time_frame === 'weekly') {
             const day = startDate.getDay();
-            const diff = startDate.getDate() - day + (day === 0 ? -6 : 1); // เริ่มต้นวันจันทร์ของสัปดาห์นี้
+            const diff = startDate.getDate() - day + (day === 0 ? -6 : 1);
             startDate = new Date(startDate.setDate(diff));
             startDate.setHours(0, 0, 0, 0);
         } else if (time_frame === 'monthly') {
-            startDate.setDate(1); // เริ่มต้นวันที่ 1 ของเดือนนี้
+            startDate.setDate(1);
             startDate.setHours(0, 0, 0, 0);
         } else {
-            startDate = new Date(0); // ถ้าไม่ส่งมา เอาข้อมูลทั้งหมด (All time)
+            startDate = new Date(0);
         }
 
-        // ดึงข้อมูลการวิ่งทั้งหมดในช่วงเวลาที่กำหนด
         const { data, error } = await supabase
             .from('runs')
             .select('distance, duration_seconds, calories')
@@ -56,10 +43,7 @@ exports.getUserStats = async (req, res) => {
 
         if (error) throw error;
 
-        // นำข้อมูลมาบวกกัน (Aggregate)
-        let totalDistance = 0;
-        let totalTime = 0;
-        let totalCalories = 0;
+        let totalDistance = 0, totalTime = 0, totalCalories = 0;
 
         data.forEach(run => {
             totalDistance += (run.distance || 0);
@@ -68,13 +52,12 @@ exports.getUserStats = async (req, res) => {
         });
 
         res.status(200).json({
-            time_frame: time_frame || 'all_time',
+            time_frame,
             total_distance: parseFloat(totalDistance.toFixed(2)),
             total_time_seconds: totalTime,
             total_calories: totalCalories
         });
     } catch (error) {
-        console.error("❌ Error fetching stats:", error);
         res.status(500).json({ error: error.message });
     }
 };

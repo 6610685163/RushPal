@@ -186,24 +186,37 @@ class RunCompleteScreen extends StatelessWidget {
               child: ElevatedButton(
                 // เปลี่ยนเป็น async และเพิ่มคำสั่งเซฟข้อมูลก่อนกลับหน้าหลัก
                 onPressed: () async {
-                  // คำนวณ Pace (นาที / กิโลเมตร)
-                  double calculatedPace = 0.0;
-                  if (distance > 0) {
-                    calculatedPace = (duration.inSeconds / 60) / distance;
-                  }
+                  // แสดง Loading
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryPink,
+                      ),
+                    ),
+                  );
 
-                  // เรียกใช้ฟังก์ชันบันทึกข้อมูล
+                  // คำนวณ Pace
+                  double calculatedPace = distance > 0
+                      ? (duration.inSeconds / 60) / distance
+                      : 0.0;
+
+                  // บันทึกข้อมูล (ส่งค่า calories ไปด้วย)
                   final dbService = DatabaseService();
                   await dbService.saveNewRun(
                     distance: distance,
                     pace: calculatedPace,
                     seconds: duration.inSeconds,
-                    calories: calories,
+                    calories: calories, // ส่งจากหน้าจอ Summary
                   );
 
-                  // กลับไปหน้าแรก
                   if (context.mounted) {
-                    Navigator.popUntil(context, (route) => route.isFirst);
+                    Navigator.pop(context); // ปิด Loading
+                    Navigator.popUntil(
+                      context,
+                      (route) => route.isFirst,
+                    ); // กลับหน้าหลัก
                   }
                 },
                 style: ElevatedButton.styleFrom(
