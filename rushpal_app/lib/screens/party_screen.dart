@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/services/party_service.dart';
 import 'start_run_screen.dart';
@@ -23,15 +24,42 @@ class _PartyScreenState extends State<PartyScreen> {
     setState(() => isLoading = true);
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // ดึง Username จาก Firestore (สมมติว่าคุณมีฟังก์ชันโหลดข้อมูลยูสเซอร์อยู่แล้ว)
-      // ในที่นี้ขอใช้ "Host" ไปก่อนเพื่อเทส
-      final code = await PartyService.createParty(
-        uid: user.uid,
-        username: "Host",
-        skinId: "skin_m_1",
-      );
-      if (code != null) {
-        setState(() => partyCode = code);
+      try {
+        // ดึง Username จาก Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        String username = 'Host'; // ค่า default
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          username = userData['username'] ?? user.displayName ?? 'Host';
+        } else {
+          username = user.displayName ?? 'Host';
+        }
+
+        final code = await PartyService.createParty(
+          uid: user.uid,
+          username: username,
+          skinId: "skin_m_1",
+        );
+        if (code != null) {
+          setState(() => partyCode = code);
+          await _savePartyCode(code);
+        }
+      } catch (e) {
+        print('Error fetching user data: $e');
+        // Fallback ใช้ displayName หรือ Host
+        final username = user.displayName ?? 'Host';
+        final code = await PartyService.createParty(
+          uid: user.uid,
+          username: username,
+          skinId: "skin_m_1",
+        );
+        if (code != null) {
+          setState(() => partyCode = code);
+          await _savePartyCode(code);
+        }
       }
     }
     setState(() => isLoading = false);
@@ -40,8 +68,27 @@ class _PartyScreenState extends State<PartyScreen> {
   @override
   void initState() {
     super.initState();
-    partyCode =
-        widget.initialPartyCode; // 🌟 2. ดึงค่าจาก Home มาใส่ตอนเปิดหน้า
+    _loadPartyCode();
+  }
+
+  Future<void> _loadPartyCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (widget.initialPartyCode != null) {
+      partyCode = widget.initialPartyCode;
+    } else {
+      partyCode = prefs.getString('partyCode');
+    }
+    setState(() {});
+  }
+
+  Future<void> _savePartyCode(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('partyCode', code);
+  }
+
+  Future<void> _clearPartyCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('partyCode');
   }
 
   @override
@@ -143,8 +190,17 @@ class _PartyScreenState extends State<PartyScreen> {
           .doc(partyCode)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || !snapshot.data!.exists) {
+        if (!snapshot.hasData) {
           return const Center(child: Text("Connecting to party..."));
+        }
+
+        if (!snapshot.data!.exists) {
+          // Party ถูกลบ ลบ shared และ reset
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await _clearPartyCode();
+            setState(() => partyCode = null);
+          });
+          return const Center(child: Text("Party has been deleted."));
         }
 
         var partyData = snapshot.data!.data() as Map<String, dynamic>;
@@ -157,7 +213,7 @@ class _PartyScreenState extends State<PartyScreen> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const StartRunScreen(),
+                builder: (context) => StartRunScreen(partyCode: partyCode!),
               ), // พาไปหน้าวิ่งเลย!
             );
           });
@@ -352,6 +408,7 @@ class _PartyScreenState extends State<PartyScreen> {
                             if (success) {
                               // ถ้าลบสำเร็จ ค่อยรีเซ็ตหน้าจอ
                               setState(() => partyCode = null);
+                              await _clearPartyCode();
                             }
                           }
                         },
