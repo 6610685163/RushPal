@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:o3d/o3d.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/character_model.dart';
-import '../services/party_service.dart';
 import 'select_character_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
@@ -24,14 +25,36 @@ class _HomeScreenState extends State<HomeScreen> {
   final O3DController _controller = O3DController();
   String username = "Loading...";
 
-  // ตัวแปรจัดการปาร์ตี้
   String? currentPartyCode;
   List<Skin> partyMembersSkins = [];
+  StreamSubscription<DocumentSnapshot>? _partySubscription;
 
   @override
   void initState() {
     super.initState();
     loadUserData();
+    _checkExistingParty(); // เรียกใช้ฟังก์ชันเช็คปาร์ตี้ค้างตั้งแต่เปิดหน้าจอ
+  }
+
+  @override
+  void dispose() {
+    _partySubscription?.cancel();
+    super.dispose();
+  }
+
+  // ฟังก์ชันเช็คว่าเราเคยเข้าร่วมปาร์ตี้ไว้แล้วหรือยัง
+  Future<void> _checkExistingParty() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPartyCode = prefs.getString('partyCode');
+
+    if (savedPartyCode != null && savedPartyCode.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          currentPartyCode = savedPartyCode;
+        });
+        _loadPartyMembers(); // ถ้ามีรหัสห้อง ให้โหลดโมเดลเพื่อนมาโชว์เลย
+      }
+    }
   }
 
   Future<void> loadUserData() async {
@@ -76,59 +99,85 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // ฟังก์ชันโหลดข้อมูลสกินของคนในปาร์ตี้
-  Future<void> _loadPartyMembers() async {
-    print("🎯 [DEBUG] เริ่มโหลดโมเดลเพื่อน รหัสห้อง: $currentPartyCode");
+  void _loadPartyMembers() {
+    _partySubscription?.cancel();
 
     if (currentPartyCode == null) {
-      print("❌ [DEBUG] currentPartyCode เป็น null");
-      setState(() => partyMembersSkins = []);
+      if (mounted) setState(() => partyMembersSkins = []);
       return;
     }
 
-    final members = await PartyService.getPartyDetails(currentPartyCode!);
-    print("🎯 [DEBUG] ข้อมูลเพื่อนที่ได้จาก API: $members");
+    _partySubscription = FirebaseFirestore.instance
+        .collection('parties')
+        .doc(currentPartyCode)
+        .snapshots()
+        .listen((snapshot) {
+          if (snapshot.exists && snapshot.data() != null) {
+            final partyData = snapshot.data() as Map<String, dynamic>;
+            final membersMap =
+                partyData['members'] as Map<String, dynamic>? ?? {};
 
-    if (members != null) {
-      List<Skin> loadedSkins = [];
-      final myUid = FirebaseAuth.instance.currentUser?.uid;
+            final myUid = FirebaseAuth.instance.currentUser?.uid;
+            List<Skin> loadedSkins = [];
+            bool isMeStillInParty = false;
 
-      for (var member in members) {
-        if (member['uid'] == myUid) continue; // ข้ามตัวเอง
-
-        try {
-          bool found = false;
-          // หา skin จาก character_model.dart (ต้องแน่ใจว่า import มาแล้ว)
-          for (var char in myCharacters) {
-            for (var skin in char.skins) {
-              if (skin.id == member['skinId']) {
-                print("✅ [DEBUG] เจอสกินของเพื่อน: ${skin.id}");
-                loadedSkins.add(skin);
-                found = true;
-                break; // หยุดลูปเมื่อเจอสกิน
+            membersMap.forEach((uid, memberData) {
+              if (uid == myUid) {
+                isMeStillInParty = true;
+                return;
               }
+
+              try {
+                String skinId = memberData['skinId'] ?? "skin_m_1";
+                bool found = false;
+
+                for (var char in myCharacters) {
+                  for (var skin in char.skins) {
+                    if (skin.id == skinId) {
+                      loadedSkins.add(skin);
+                      found = true;
+                      break;
+                    }
+                  }
+                  if (found) break;
+                }
+              } catch (e) {
+                print("Skin matching error: $e");
+              }
+            });
+
+            // ถ้าระบบพบว่าเราโดนเตะ หรือออกห้องไปแล้ว ให้เคลียร์ข้อมูลทิ้ง
+            if (!isMeStillInParty) {
+              if (mounted) {
+                setState(() {
+                  currentPartyCode = null;
+                  partyMembersSkins = [];
+                });
+              }
+              SharedPreferences.getInstance().then(
+                (prefs) => prefs.remove('partyCode'),
+              );
+              return;
             }
-            if (found) break; // หยุดลูป character ถ้าเจอแล้ว
-          }
-          if (!found) {
-            print(
-              "❌ [DEBUG] หาโมเดลไม่เจอ! Backend ส่ง skinId มาเป็น: ${member['skinId']}",
+
+            if (mounted) {
+              setState(() {
+                partyMembersSkins = loadedSkins;
+              });
+            }
+          } else {
+            // ถ้าห้องปาร์ตี้โดนยุบทิ้ง (เอกสารใน Firestore หายไป)
+            if (mounted) {
+              setState(() {
+                currentPartyCode = null;
+                partyMembersSkins = [];
+              });
+            }
+            SharedPreferences.getInstance().then(
+              (prefs) => prefs.remove('partyCode'),
             );
           }
-        } catch (e) {
-          print("❌ [DEBUG] Error หา Skin ID: $e");
-        }
-      }
-
-      print("🎯 [DEBUG] จำนวนโมเดลเพื่อนที่จะแสดง: ${loadedSkins.length}");
-      if (mounted) {
-        setState(() {
-          partyMembersSkins = loadedSkins;
         });
-      }
-    } else {
-      print("❌ [DEBUG] API คืนค่า members กลับมาเป็น null");
-    }
   }
 
   void _navigateToSelectCharacter() {
@@ -158,78 +207,108 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // 2. ตัวละคร 3D (แสดงหลายตัวละครได้)
-            Positioned.fill(
-              bottom: 60,
+            // 2. โซนตัวละคร (1-3 คนเป็นตัว V, 4 คนเป็นหน้ากระดาน)
+            // 2. โซนตัวละคร (1-3 คนเป็นตัว V, 4 คนเป็นหน้ากระดาน)
+            Positioned(
+              bottom: 160,
+              left: 0,
+              right: 0,
+              height: 550,
               child: ValueListenableBuilder<Skin?>(
                 valueListenable: PlayerState.currentSkin,
                 builder: (context, currentSkin, child) {
                   if (currentSkin == null) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppTheme.primaryPink,
-                      ),
-                    );
+                    return const SizedBox.shrink();
                   }
 
-                  // นำสกินเราและเพื่อนมารวมกันในลิสต์เดียว
-                  List<Skin> allDisplaySkins = [
-                    currentSkin,
-                    ...partyMembersSkins,
-                  ];
+                  List<Skin> allSkins = [currentSkin, ...partyMembersSkins];
+                  List<Widget> characterStack = [];
 
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: allDisplaySkins.map((skin) {
-                      return Expanded(
+                  Widget buildCharacter(
+                    Skin skin,
+                    int index,
+                    double xOffset,
+                    double shadowBottom,
+                  ) {
+                    return Transform.translate(
+                      offset: Offset(xOffset, 0),
+                      child: SizedBox(
+                        width: index == 0 ? 350 : 280,
+                        height: 550,
                         child: Stack(
-                          alignment: Alignment.center,
+                          alignment: Alignment.bottomCenter,
                           children: [
+                            // 🌟 แก้ไขเงาให้เป็นแบบ 2D เหมือนหน้า Market
                             Positioned(
-                              bottom: 200,
+                              bottom: shadowBottom,
                               child: Container(
-                                // ย่อขนาดเงาลงตามจำนวนคน
-                                width:
-                                    160 /
-                                    (allDisplaySkins.isNotEmpty
-                                        ? allDisplaySkins.length
-                                        : 1),
-                                height: 16,
+                                width: index == 0
+                                    ? 140
+                                    : 100, // ขนาดกว้างตามตัวละคร
+                                height: 18,
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.12),
+                                  color: Colors.black.withOpacity(
+                                    0.12,
+                                  ), // 🌟 เปลี่ยนความเข้มเป็น 0.12
                                   borderRadius: const BorderRadius.all(
-                                    Radius.elliptical(80, 8),
+                                    Radius.elliptical(
+                                      80,
+                                      15,
+                                    ), // 🌟 ปรับองศาวงรีให้เป็น 2D แบนๆ
                                   ),
                                 ),
                               ),
                             ),
                             O3D(
-                              // กำหนด key ให้ต่างกันป้องกัน Widget ตีกัน
-                              key: ValueKey(
-                                "home_${skin.modelPath}_${skin.id}",
-                              ),
+                              key: ValueKey("home_char_${skin.id}_$index"),
                               src: skin.modelPath,
-                              // ตัวละครตัวเองให้ใช้ _controller ส่วนเพื่อนปล่อยให้ Auto เล่นแอนิเมชันไป
-                              controller: skin == currentSkin
-                                  ? _controller
-                                  : null,
+                              controller: index == 0 ? _controller : null,
                               autoPlay: true,
                               autoRotate: false,
                               cameraControls: false,
                               backgroundColor: Colors.transparent,
-                              exposure: 0.8,
+                              exposure: 0.9,
                               animationName: 'Idle',
                             ),
                           ],
                         ),
+                      ),
+                    );
+                  }
+
+                  if (allSkins.length == 4) {
+                    List<double> xPositions = [45.0, -45.0, -140.0, 140.0];
+                    for (int i = 3; i >= 1; i--) {
+                      characterStack.add(
+                        buildCharacter(allSkins[i], i, xPositions[i], 120.0),
                       );
-                    }).toList(),
+                    }
+                    characterStack.add(
+                      buildCharacter(allSkins[0], 0, xPositions[0], 80.0),
+                    );
+                  } else {
+                    for (int i = allSkins.length - 1; i >= 1; i--) {
+                      int depth = (i + 1) ~/ 2;
+                      double side = (i % 2 != 0) ? -1.0 : 1.0;
+                      double xPos = depth * 100.0 * side;
+                      characterStack.add(
+                        buildCharacter(allSkins[i], i, xPos, 140.0),
+                      );
+                    }
+                    characterStack.add(
+                      buildCharacter(allSkins[0], 0, 0.0, 80.0),
+                    );
+                  }
+
+                  return Stack(
+                    alignment: Alignment.bottomCenter,
+                    children: characterStack,
                   );
                 },
               ),
             ),
-
-            // 4. UI HUD ด้านบน และปุ่ม Start ด้านล่าง
+            
+            // 3. UI HUD และปุ่ม Start
             SafeArea(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -249,7 +328,6 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ฝั่งซ้าย: โปรไฟล์ และ Coin
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -335,8 +413,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-
-          // ฝั่งขวา: Noti, Settings, Streak, Party
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -361,24 +437,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 Colors.orange,
               ),
               const SizedBox(height: 8),
-
-              // ปุ่ม Party รอรับรหัสห้องกลับมาเพื่ออัปเดตโมเดล
               GestureDetector(
                 onTap: () async {
                   final dynamic returnedCode = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const PartyScreen(),
+                      builder: (context) =>
+                          PartyScreen(initialPartyCode: currentPartyCode),
                     ),
                   );
-
-                  if (mounted &&
-                      returnedCode != null &&
-                      returnedCode is String) {
-                    setState(() {
-                      currentPartyCode = returnedCode;
-                    });
-                    // สั่งให้โหลดโมเดลเพื่อนใหม่เมื่อได้ Party Code กลับมา
+                  if (mounted && returnedCode is String?) {
+                    setState(() => currentPartyCode = returnedCode);
                     _loadPartyMembers();
                   }
                 },
@@ -466,16 +535,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _GameStartButton extends StatefulWidget {
   final VoidCallback onPressed;
-
   const _GameStartButton({required this.onPressed});
-
   @override
   __GameStartButtonState createState() => __GameStartButtonState();
 }
 
 class __GameStartButtonState extends State<_GameStartButton> {
   bool _isPressed = false;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(

@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PartyService {
   static const String baseUrl = 'http://10.0.2.2:3000/api/parties';
@@ -196,6 +198,27 @@ class PartyService {
     } catch (e) {
       print("❌ API Error (Get Party Details): $e");
       return null;
+    }
+  }
+
+  // --- 9. อัปเดตสกินให้เพื่อนในปาร์ตี้เห็นแบบ Real-time ---
+  static Future<void> syncSkinToParty(String newSkinId, String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final partyCode = prefs.getString('partyCode');
+
+      // เช็คว่าเรากำลังอยู่ในปาร์ตี้หรือไม่
+      if (partyCode != null && partyCode.isNotEmpty) {
+        // อัปเดตข้อมูลสกินของเราใน Firestore ของปาร์ตี้นั้นๆ
+        await FirebaseFirestore.instance
+            .collection('parties')
+            .doc(partyCode)
+            .update({'members.$uid.skinId': newSkinId});
+        print("✅ ซิงค์สกินใหม่เข้าปาร์ตี้สำเร็จ เพื่อนจะเห็นแล้ว!");
+      }
+    } catch (e) {
+      // ไม่ต้องแจ้ง Error ถือว่าผู้ใช้เปลี่ยนสกินตอนที่ไม่ได้อยู่ในปาร์ตี้
+      print("ℹ️ เปลี่ยนสกินตอนไม่ได้อยู่ในปาร์ตี้ หรือ Error: $e");
     }
   }
 }

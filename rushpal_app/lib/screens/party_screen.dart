@@ -7,7 +7,9 @@ import 'package:rushpal/services/party_service.dart';
 import 'start_run_screen.dart';
 import '../models/character_model.dart';
 
-class PartyScreen extends StatefulWidget {
+class PartyScreen extends StatefulWidget 
+
+{
   final String? initialPartyCode;
   const PartyScreen({super.key, this.initialPartyCode});
 
@@ -546,7 +548,7 @@ class _PartyScreenState extends State<PartyScreen> {
                     .trim(); // เอาช่องว่างหัวท้ายออก
 
                 if (user != null && codeInput.isNotEmpty) {
-                  // 🌟 เรียกใช้ API ที่เพิ่งสร้าง
+                  // เรียกใช้ API ที่เพิ่งสร้าง
                   final joinedCode = await PartyService.joinPartyByCode(
                     partyCode: codeInput,
                     uid: user.uid,
@@ -562,6 +564,7 @@ class _PartyScreenState extends State<PartyScreen> {
                       partyCode = joinedCode;
                       _joinController.clear(); // ล้างช่องกรอกเผื่อไว้
                     });
+                    await _savePartyCode(joinedCode);
                   } else {
                     // ถ้าเข้าไม่ได้ (รหัสผิด/ห้องไม่มีจริง) โชว์แจ้งเตือน
                     ScaffoldMessenger.of(context).showSnackBar(
