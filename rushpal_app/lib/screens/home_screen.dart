@@ -265,9 +265,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             O3D(
+                              // เพิ่มเวลาเข้าไปใน ValueKey เพื่อบังคับให้รีโหลดเสมอเมื่อข้อมูลเปลี่ยน
                               key: ValueKey("home_char_${skin.id}_$index"),
-                              src: skin.modelPath,
+                              // เปลี่ยนจาก _controller มาเป็นการเช็คว่าถ้าเป็นตัวเรา ถึงใช้ _controller ถ้าเป็นเพื่อนไม่ต้องใช้
                               controller: index == 0 ? _controller : null,
+                              src: skin.modelPath,
                               autoPlay: true,
                               autoRotate: false,
                               cameraControls: false,
