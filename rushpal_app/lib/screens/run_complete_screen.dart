@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rushpal/theme/app_theme.dart';
+import '../services/database_service.dart'; // เพิ่มการเรียกใช้ DatabaseService
 
 class RunCompleteScreen extends StatelessWidget {
   final Duration duration;
@@ -31,45 +32,57 @@ class RunCompleteScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.pureBlack,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         title: const Text(
           "Summary",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
         ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // Map Snapshot (Placeholder)
             Container(
               height: 250,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: AppTheme.darkBlue.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(
+                  color: AppTheme.primaryPink.withOpacity(0.5),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryPink.withOpacity(0.2),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
                 child: startPoint == null
                     ? const Center(
                         child: Text(
                           "No Route Data",
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.white54),
                         ),
                       )
                     : FlutterMap(
                         options: MapOptions(
                           initialCenter: startPoint,
-                          initialZoom: 15.0, // ซูมออกนิดหน่อยให้เห็นเส้นทาง
+                          initialZoom: 15.0,
                           interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag
-                                .none, // ล็อกแผนที่ ไม่ให้เลื่อนเล่นได้
+                            flags: InteractiveFlag.none,
                           ),
                         ),
                         children: [
@@ -82,7 +95,6 @@ class RunCompleteScreen extends StatelessWidget {
                               'id': 'mapbox/dark-v11',
                             },
                           ),
-                          // วาดเส้นทางสีแดง
                           for (var segment in routeSegments)
                             if (segment.length > 1)
                               PolylineLayer(
@@ -90,18 +102,17 @@ class RunCompleteScreen extends StatelessWidget {
                                   Polyline(
                                     points: segment,
                                     strokeWidth: 5.0,
-                                    color: AppTheme.primaryRed,
+                                    color: AppTheme.primaryPink,
                                   ),
                                 ],
                               ),
-                          // วางหมุดจุดเริ่มต้น
                           MarkerLayer(
                             markers: [
                               Marker(
                                 point: startPoint,
                                 child: const Icon(
                                   Icons.location_on,
-                                  color: Colors.green,
+                                  color: Colors.greenAccent,
                                   size: 30,
                                 ),
                               ),
@@ -113,72 +124,116 @@ class RunCompleteScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // Date & Time
             Text(
-              "Tuesday, 17 Feb 2026",
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+              "MISSION ACCOMPLISHED",
+              style: TextStyle(
+                color: AppTheme.primaryPink.withOpacity(0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
             ),
+            const SizedBox(height: 8),
             const Text(
               "Morning Run",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 30),
 
-            // Big Stats Grid
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildBigStat("Distance", "$distance", "km"),
-                Container(width: 1, height: 50, color: Colors.grey[300]),
-                _buildBigStat("Time", _formatTime(duration), ""),
-                Container(width: 1, height: 50, color: Colors.grey[300]),
-                _buildBigStat("Calories", "$calories", "kcal"),
-              ],
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.darkBlue.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildBigStat("Distance", "$distance", "km"),
+                  Container(width: 1, height: 50, color: Colors.white24),
+                  _buildBigStat("Time", _formatTime(duration), ""),
+                  Container(width: 1, height: 50, color: Colors.white24),
+                  _buildBigStat("Calories", "$calories", "kcal"),
+                ],
+              ),
             ),
             const SizedBox(height: 30),
-            const Divider(),
-            const SizedBox(height: 20),
 
-            // Detailed Stats
             _buildDetailRow("Avg Pace", "6:30 /km", Icons.speed, Colors.blue),
             _buildDetailRow(
               "Elevation Gain",
               "120 m",
               Icons.terrain,
-              Colors.green,
+              Colors.greenAccent,
             ),
             _buildDetailRow(
               "Heart Rate",
               "145 bpm",
               Icons.favorite,
-              Colors.red,
+              AppTheme.primaryPink,
             ),
 
             const SizedBox(height: 50),
 
-            // Back Home Button
             SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 60,
               child: ElevatedButton(
-                onPressed: () {
-                  // กลับไปหน้าแรกสุด (Home)
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                // เปลี่ยนเป็น async และเพิ่มคำสั่งเซฟข้อมูลก่อนกลับหน้าหลัก
+                onPressed: () async {
+                  // แสดง Loading
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryPink,
+                      ),
+                    ),
+                  );
+
+                  // คำนวณ Pace
+                  double calculatedPace = distance > 0
+                      ? (duration.inSeconds / 60) / distance
+                      : 0.0;
+
+                  // บันทึกข้อมูล (ส่งค่า calories ไปด้วย)
+                  final dbService = DatabaseService();
+                  await dbService.saveNewRun(
+                    distance: distance,
+                    pace: calculatedPace,
+                    seconds: duration.inSeconds,
+                    calories: calories, // ส่งจากหน้าจอ Summary
+                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context); // ปิด Loading
+                    Navigator.popUntil(
+                      context,
+                      (route) => route.isFirst,
+                    ); // กลับหน้าหลัก
+                  }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryRed,
+                  backgroundColor: AppTheme.primaryPink,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                   elevation: 5,
-                  shadowColor: AppTheme.primaryRed.withOpacity(0.4),
+                  shadowColor: AppTheme.primaryPink.withOpacity(0.4),
                 ),
                 child: const Text(
-                  "Back to Home",
+                  "CONTINUE",
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
                     color: Colors.white,
+                    letterSpacing: 2,
                   ),
                 ),
               ),
@@ -195,7 +250,7 @@ class RunCompleteScreen extends StatelessWidget {
         Text(
           label.toUpperCase(),
           style: const TextStyle(
-            color: Colors.grey,
+            color: Colors.white54,
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
@@ -206,14 +261,18 @@ class RunCompleteScreen extends StatelessWidget {
           children: [
             Text(
               value,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             if (unit.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 3, left: 2),
+                padding: const EdgeInsets.only(bottom: 4, left: 2),
                 child: Text(
                   unit,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 12, color: Colors.white54),
                 ),
               ),
           ],
@@ -228,24 +287,37 @@ class RunCompleteScreen extends StatelessWidget {
     IconData icon,
     Color color,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.darkBlue.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white12),
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 15),
-          Text(label, style: const TextStyle(fontSize: 16)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
+          ),
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),

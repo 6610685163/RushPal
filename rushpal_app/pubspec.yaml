@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    
+  supabase_flutter: ^2.6.0  # เพิ่มบรรทัดนี้
   firebase_core:
   firebase_auth:
   cloud_firestore:
