@@ -22,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final O3DController _controller = O3DController();
   String username = "Loading...";
+  String? currentPartyCode;
 
   @override
   void initState() {
@@ -79,8 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -147,8 +146,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-
-
             // 4. UI HUD ด้านบน และปุ่ม Start ด้านล่าง
             SafeArea(
               child: Column(
@@ -161,8 +158,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-
 
   Widget _buildGameHUD(BuildContext context) {
     return Padding(
@@ -283,11 +278,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 Colors.orange,
               ),
               const SizedBox(height: 8),
+              // 🌟 2. แก้ไขปุ่ม Party ให้ส่งค่าไปและรอรับค่ากลับมา
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PartyScreen()),
-                ),
+                onTap: () async {
+                  // ส่งรหัสเดิมไป (ถ้ามี) และรอรับรหัสใหม่กลับมาตอนกด Back
+                  final String? returnedCode = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      // ส่ง initialPartyCode ไปให้หน้า PartyScreen ด้วยนะ
+                      builder: (context) =>
+                          PartyScreen(initialPartyCode: currentPartyCode),
+                    ),
+                  );
+
+                  // อัปเดตความจำให้หน้า Home
+                  if (mounted) {
+                    setState(() {
+                      currentPartyCode = returnedCode;
+                    });
+                  }
+                },
                 child: _buildBadge(
                   "Party",
                   Icons.celebration_rounded,
