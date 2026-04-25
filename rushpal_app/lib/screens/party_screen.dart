@@ -64,6 +64,9 @@ class _PartyScreenState extends State<PartyScreen> {
           setState(() => partyCode = code);
           await _savePartyCode(code);
         }
+        if (mounted) {
+          setState(() => isLoading = false);
+        }
       }
     }
     setState(() => isLoading = false);
