@@ -23,10 +23,36 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     setState(() => _isLoading = true);
     try {
+      String identifier = emailController.text.trim();
+      String password = passwordController.text.trim();
+      String loginEmail = identifier;
+
+      // ตรวจสอบว่าสิ่งที่กรอกมาใช่อีเมลหรือไม่ (ถ้าไม่มี '@' ถือว่าเป็น Username)
+      if (!identifier.contains('@')) {
+        // ค้นหาอีเมลจาก Firestore โดยใช้ username
+        final userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('username', isEqualTo: identifier)
+            .limit(1)
+            .get();
+
+        // ถ้าไม่เจอ username นี้ในระบบ
+        if (userQuery.docs.isEmpty) {
+          if (mounted) _showError("ไม่พบชื่อผู้ใช้นี้ในระบบ");
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // ถ้าเจอ ดึงอีเมลที่ผูกกับ username นี้มาใช้ล็อกอิน
+        loginEmail = userQuery.docs.first.data()['email'];
+      }
+
+      // นำอีเมลที่ได้ (หรือที่กรอกมาแต่แรก) ไป Login ผ่าน Firebase Auth
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: loginEmail,
+        password: password,
       );
+
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -36,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       String errorMessage = "เกิดข้อผิดพลาด กรุณาลองใหม่";
       if (e.code == 'user-not-found') {
-        errorMessage = "ไม่พบอีเมลนี้ในระบบ";
+        errorMessage = "ไม่พบผู้ใช้นี้ในระบบ";
       } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         errorMessage = "รหัสผ่านไม่ถูกต้อง!";
       } else if (e.code == 'invalid-email') {
@@ -44,7 +70,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       if (mounted) _showError(errorMessage);
     } catch (e) {
-      print("🚨 UNKNOWN ERROR: $e");
+      print("UNKNOWN ERROR: $e");
+      if (mounted) _showError("เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -101,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       if (mounted) _showError(errorMessage);
     } catch (e) {
-      print("🚨 GOOGLE ERROR: $e");
+      print("GOOGLE ERROR: $e");
       if (mounted) _showError("เข้าสู่ระบบด้วย Google ล้มเหลว");
     } finally {
       if (mounted) setState(() => _isGoogleLoading = false);
@@ -152,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 50),
                 _buildTextField(
-                  hintText: "Enter your email",
+                  hintText: "Enter your username or email",
                   controller: emailController,
                 ),
                 const SizedBox(height: 16),
