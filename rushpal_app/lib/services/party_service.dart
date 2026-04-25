@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PartyService {
-  // 🌟 อย่าลืมเปลี่ยน IP ตรงนี้ให้ตรงกับ baseUrl เดิมที่คุณใช้ในแอปนะครับ
-  // (เช่น 'http://10.0.2.2:3000/api/parties' หรือ 'http://localhost:3000/api/parties')
   static const String baseUrl = 'http://10.0.2.2:3000/api/parties';
 
   // --- 1. สร้างห้องปาร์ตี้ (Host) ---
@@ -177,6 +175,27 @@ class PartyService {
     } catch (e) {
       print("❌ API Error (Start Party): $e");
       return false;
+    }
+  }
+
+  // --- 8. ดึงข้อมูลสมาชิกในปาร์ตี้---
+  static Future<List<dynamic>?> getPartyDetails(String partyCode) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/details/$partyCode'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['members']; // คืนค่าเป็น List กลับไปให้หน้า Home วาดโมเดล
+      } else {
+        print("❌ ไม่พบข้อมูลปาร์ตี้: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      print("❌ API Error (Get Party Details): $e");
+      return null;
     }
   }
 }

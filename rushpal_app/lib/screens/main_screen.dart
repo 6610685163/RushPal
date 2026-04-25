@@ -55,7 +55,7 @@ class _MainScreenState extends State<MainScreen> {
           _buildNavItem(Icons.home_rounded, 0, 'Home'),
           _buildNavItem(Icons.storefront_rounded, 1, 'Shop'),
           _buildNavItem(Icons.bar_chart_rounded, 2, 'Stats'),
-          _buildNavItem(Icons.groups_rounded, 3, 'Party'),
+          _buildNavItem(Icons.groups_rounded, 3, 'Friends'),
         ],
       ),
     );

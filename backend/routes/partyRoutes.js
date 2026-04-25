@@ -10,5 +10,6 @@ router.post('/join-by-code', partyController.joinPartyByCode);
 router.post('/ready', partyController.toggleReady);
 router.post('/leave', partyController.leaveParty);
 router.post('/start', partyController.startParty);
+router.get('/details/:partyCode', partyController.getPartyDetails); // เพิ่มบรรทัดนี้ เพื่อเปิดทางให้แอปดึงข้อมูลสมาชิกได้
 
 module.exports = router;
