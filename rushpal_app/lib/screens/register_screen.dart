@@ -37,7 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             password: passwordController.text.trim(),
           );
 
-      // บันทึกข้อมูลลง Firestore
+      // บันทึกข้อมูลลง Firestore (เพิ่มช่องเก็บเงินและของ)
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -45,12 +45,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'username': usernameController.text.trim(),
             'email': emailController.text.trim(),
             'created_at': Timestamp.now(),
+            // --- เพิ่มข้อมูลตั้งต้นตรงนี้ ---
+            'points': 1000,
+            'inventory': [],
+            'level': 1,
+            'characterId': '',
+            'skinId': '',
           });
 
       if (mounted) {
         Navigator.pop(
           context,
-        ); // กลับไปหน้า Login หรือสามารถเปลี่ยนไป MainScreen ได้
+        ); // กลับไปหน้า Login
       }
     } on FirebaseAuthException catch (e) {
       String errorMsg = "เกิดข้อผิดพลาด กรุณาลองใหม่";
@@ -104,11 +110,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               'username': userCredential.user!.displayName ?? 'Google User',
               'email': userCredential.user!.email,
               'created_at': Timestamp.now(),
+              // --- เพิ่มข้อมูลตั้งต้นตรงนี้ด้วย (เผื่อคนล็อกอิน Google ครั้งแรก) ---
+              'points': 1000,
+              'inventory': [],
+              'level': 1,
+              'characterId': '',
+              'skinId': '',
             });
       }
 
       if (mounted) {
-        // ลงทะเบียนเสร็จให้กลับไปหน้า Login หรือเปลี่ยนไป MainScreen
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {

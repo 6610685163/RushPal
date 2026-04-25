@@ -5,8 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/services/party_service.dart';
 import 'start_run_screen.dart';
+import '../models/character_model.dart';
 
-class PartyScreen extends StatefulWidget {
+class PartyScreen extends StatefulWidget 
+
+{
   final String? initialPartyCode;
   const PartyScreen({super.key, this.initialPartyCode});
 
@@ -19,21 +22,21 @@ class _PartyScreenState extends State<PartyScreen> {
   bool isLoading = false;
   final TextEditingController _joinController = TextEditingController();
 
-  // 🌟 ฟังก์ชันสร้างห้องใหม่
+  // ฟังก์ชันสร้างห้องใหม่
   Future<void> _createParty() async {
     setState(() => isLoading = true);
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
-        // ดึง Username จาก Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        String username = 'Host'; // ค่า default
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        String username = 'Host';
+        // ดึง skinId ปัจจุบันของผู้ใช้
+        String currentSkinId = PlayerState.currentSkin.value?.id ?? "skin_m_1"; // ดึงจาก PlayerState
+
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
           username = userData['username'] ?? user.displayName ?? 'Host';
+          // หรือดึงจาก Firestore ก็ได้ถ้าบันทึกไว้: currentSkinId = userData['skinId'] ?? currentSkinId;
         } else {
           username = user.displayName ?? 'Host';
         }
@@ -41,8 +44,9 @@ class _PartyScreenState extends State<PartyScreen> {
         final code = await PartyService.createParty(
           uid: user.uid,
           username: username,
-          skinId: "skin_m_1",
+          skinId: currentSkinId, // ส่ง skinId ที่ถูกต้องไป
         );
+        // ... (ส่วนที่เหลือเหมือนเดิม)
         if (code != null) {
           setState(() => partyCode = code);
           await _savePartyCode(code);
@@ -547,7 +551,7 @@ class _PartyScreenState extends State<PartyScreen> {
                     .trim(); // เอาช่องว่างหัวท้ายออก
 
                 if (user != null && codeInput.isNotEmpty) {
-                  // 🌟 เรียกใช้ API ที่เพิ่งสร้าง
+                  // เรียกใช้ API ที่เพิ่งสร้าง
                   final joinedCode = await PartyService.joinPartyByCode(
                     partyCode: codeInput,
                     uid: user.uid,
@@ -563,6 +567,7 @@ class _PartyScreenState extends State<PartyScreen> {
                       partyCode = joinedCode;
                       _joinController.clear(); // ล้างช่องกรอกเผื่อไว้
                     });
+                    await _savePartyCode(joinedCode);
                   } else {
                     // ถ้าเข้าไม่ได้ (รหัสผิด/ห้องไม่มีจริง) โชว์แจ้งเตือน
                     ScaffoldMessenger.of(context).showSnackBar(
