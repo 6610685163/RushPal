@@ -2,6 +2,8 @@
 const express = require('express');
 const cors = require('cors');
 const shopRoutes = require('./routes/shopRoutes'); // นำเข้า routes ร้านค้า
+const friendRoutes = require('./routes/friendRoutes');
+const partyRoutes = require('./routes/partyRoutes');
 
 const app = express();
 
@@ -10,6 +12,8 @@ app.use(express.json());
 
 // บอกให้แอปใช้งานเส้นทาง API ของร้านค้า โดยนำหน้าด้วย /api/shop
 app.use('/api/shop', shopRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/parties', partyRoutes);
 
 // ทดสอบเซิร์ฟเวอร์
 app.get('/', (req, res) => {

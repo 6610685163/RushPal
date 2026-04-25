@@ -22,7 +22,7 @@ class Character {
   });
 }
 
-// สร้าง Mock Data จำลองฐานข้อมูลตัวละครในเกม
+// ข้อมูลจำลองตัวละครในเกม
 final List<Character> myCharacters = [
   Character(
     id: 'char_male_01',
@@ -31,17 +31,17 @@ final List<Character> myCharacters = [
     skins: [
       Skin(
         id: 'skin_m_1',
-        name: 'default',
+        name: 'Default',
         modelPath: 'assets/models/ray_default_run.glb',
       ),
       Skin(
         id: 'skin_m_2',
-        name: 'black',
+        name: 'Black',
         modelPath: 'assets/models/ray_black_run.glb',
       ),
       Skin(
         id: 'skin_m_3',
-        name: 'cream',
+        name: 'Cream',
         modelPath: 'assets/models/ray_cream_run.glb',
       ),
     ],
@@ -53,17 +53,17 @@ final List<Character> myCharacters = [
     skins: [
       Skin(
         id: 'skin_f_1',
-        name: 'default',
+        name: 'Default',
         modelPath: 'assets/models/fern_default_run.glb',
       ),
       Skin(
         id: 'skin_f_2',
-        name: 'black',
+        name: 'Black',
         modelPath: 'assets/models/fern_black_run.glb',
       ),
       Skin(
         id: 'skin_f_3',
-        name: 'pink',
+        name: 'Pink',
         modelPath: 'assets/models/fern_pink_run.glb',
       ),
     ],
@@ -71,7 +71,7 @@ final List<Character> myCharacters = [
 ];
 
 class PlayerState {
-  // สร้างตัวแปร Global ไว้เก็บค่าตัวละครและสกินที่กำลังใช้งาน
+  // ตัวแปร Global สำหรับเก็บค่าตัวละครและสกินที่กำลังใช้งาน
   static ValueNotifier<Character?> currentCharacter = ValueNotifier(null);
   static ValueNotifier<Skin?> currentSkin = ValueNotifier(null);
 }

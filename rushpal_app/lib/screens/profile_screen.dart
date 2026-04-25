@@ -8,19 +8,19 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.pureBlack,
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textLight),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "Profile",
           style: TextStyle(
-            color: Colors.white,
+            color: AppTheme.textLight,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -30,24 +30,22 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 20),
+
+            // Profile Image & Level
             Center(
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppTheme.primaryPink.withOpacity(0.5),
+                      color: AppTheme.primaryPink,
                     ),
                     child: const CircleAvatar(
                       radius: 50,
-                      backgroundColor: AppTheme.darkBlue,
-                      child: Icon(
-                        Icons.person,
-                        size: 60,
-                        color: AppTheme.primaryPink,
-                      ),
+                      backgroundColor: AppTheme.backgroundCream,
+                      child: Icon(Icons.person, size: 60, color: AppTheme.primaryPink),               
                     ),
                   ),
                   Positioned(
@@ -65,7 +63,8 @@ class ProfileScreen extends StatelessWidget {
                       child: const Text(
                         "Level 99",
                         style: TextStyle(
-                          color: Colors.white,
+                          color:
+                              AppTheme.pureBlack,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -76,15 +75,20 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
+
+            // Name
             const Text(
               "Name",
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppTheme.textLight,
               ),
             ),
+
             const SizedBox(height: 20),
+
+            // Friends & Trophies Count
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -92,41 +96,46 @@ class ProfileScreen extends StatelessWidget {
                 Container(
                   height: 30,
                   width: 1,
-                  color: Colors.white24,
+                  color: AppTheme.primaryPink.withOpacity(0.3),
                   margin: const EdgeInsets.symmetric(horizontal: 30),
                 ),
                 _buildCountItem("Trophy earned", "6"),
               ],
             ),
+
             const SizedBox(height: 20),
+
+            // Edit Profile Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EditProfileScreen(),
-                    ),
-                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen(),
+                      ),
+                    );
+                  },
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    side: const BorderSide(color: AppTheme.primaryPink),
+                    side: const BorderSide(color: Colors.grey),
                   ),
                   child: const Text(
                     "Edit profile",
-                    style: TextStyle(
-                      color: AppTheme.primaryPink,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: Colors.black),
                   ),
                 ),
               ),
             ),
+
             const SizedBox(height: 30),
+
+            // Stats Grid (Distance, Pace, Time, Calories)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: GridView.count(
@@ -159,12 +168,15 @@ class ProfileScreen extends StatelessWidget {
                     "Calories Burned",
                     "1,200 cal",
                     Icons.local_fire_department,
-                    AppTheme.primaryPink,
+                    Colors.red,
                   ),
                 ],
               ),
             ),
+
             const SizedBox(height: 30),
+
+            // Trophies Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -178,19 +190,19 @@ class ProfileScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
                         ),
                       ),
                       TextButton(
                         onPressed: () {},
                         child: const Text(
                           "See all",
-                          style: TextStyle(color: AppTheme.primaryPink),
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
+                  // Trophy List (Horizontal)
                   SizedBox(
                     height: 100,
                     child: ListView(
@@ -218,16 +230,9 @@ class ProfileScreen extends StatelessWidget {
       children: [
         Text(
           count,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.white70),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -241,9 +246,11 @@ class ProfileScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppTheme.darkBlue.withOpacity(0.6),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: color.withOpacity(0.3)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 2)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,16 +260,9 @@ class ProfileScreen extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 12, color: Colors.white70),
-          ),
+          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
@@ -280,18 +280,13 @@ class ProfileScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withOpacity(0.2),
               shape: BoxShape.circle,
-              border: Border.all(color: color.withOpacity(0.5)),
             ),
             child: Icon(Icons.emoji_events, color: color, size: 30),
           ),
           const SizedBox(height: 5),
           Text(
             name,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

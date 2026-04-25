@@ -1,378 +1,292 @@
 import 'package:flutter/material.dart';
-import 'package:o3d/o3d.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../theme/app_theme.dart';
+import 'package:o3d/o3d.dart';
+import 'package:rushpal/theme/app_theme.dart';
 import '../models/character_model.dart';
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
+
   @override
-  _MarketScreenState createState() => _MarketScreenState();
+  State<MarketScreen> createState() => _MarketScreenState();
 }
 
 class _MarketScreenState extends State<MarketScreen> {
   final O3DController _controller = O3DController();
-  Character? viewedCharacter;
-  Skin? previewSkin;
+  Character? selectedCharacter;
 
   @override
   void initState() {
     super.initState();
-    viewedCharacter = PlayerState.currentCharacter.value;
-    previewSkin = PlayerState.currentSkin.value;
+    selectedCharacter = PlayerState.currentCharacter.value;
   }
 
-  Future<void> _equipSkin(Character character, Skin skin) async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
+  Future<void> _equipSkin(Character char, Skin skin) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'characterId': character.id,
-        'skinId': skin.id,
-      });
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'characterId': char.id,
+      'skinId': skin.id,
+    });
 
-      PlayerState.currentCharacter.value = character;
-      PlayerState.currentSkin.value = skin;
+    PlayerState.currentCharacter.value = char;
+    PlayerState.currentSkin.value = skin;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('สวมใส่ชุด ${skin.name} ให้ ${character.name} แล้ว'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {}
-  }
+    setState(() {});
 
-  void _showCharacterSelectionDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppTheme.darkBlue, // Popup สีมืด
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: AppTheme.primaryPink),
-          ),
-          title: const Text(
-            'เปลี่ยนตัวละคร',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: myCharacters.map((char) {
-              final isCurrentView = viewedCharacter?.id == char.id;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    viewedCharacter = char;
-                    previewSkin = char.skins.first;
-                  });
-                  _equipSkin(char, char.skins.first);
-                  Navigator.pop(context);
-                },
-                child: Card(
-                  color: AppTheme.pureBlack,
-                  elevation: isCurrentView ? 8 : 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: isCurrentView
-                          ? AppTheme.primaryPink
-                          : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                  child: Container(
-                    width: 110,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 20,
-                      horizontal: 10,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          char.gender == 'Male' ? Icons.boy : Icons.girl,
-                          size: 60,
-                          color: char.gender == 'Male'
-                              ? Colors.blue
-                              : AppTheme.primaryPink,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          char.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        );
-      },
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('เปลี่ยนชุดเป็น ${skin.name} แล้ว!'),
+        backgroundColor: AppTheme.primaryPink,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(
+          bottom: 90,
+          left: 20,
+          right: 20,
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (viewedCharacter == null || previewSkin == null)
-      return const Scaffold(
-        backgroundColor: AppTheme.pureBlack,
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryPink),
-        ),
-      );
+    // คำนวณระยะห่างด้านล่างสำหรับ Navbar
+    double bottomPadding = MediaQuery.of(context).padding.bottom + 10;
 
     return Scaffold(
-      backgroundColor: AppTheme.pureBlack,
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
         title: const Text(
-          "Skin Shop",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          'CHARACTER SHOP',
+          style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w900),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       body: Column(
         children: [
-          Expanded(
-            flex: 5,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  bottom: 10,
-                  child: Container(
-                    width: 160,
-                    height: 25,
+          // 1. โซนเลือกตัวละคร
+          Container(
+            height: 90,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              children: myCharacters.map((char) {
+                bool isSelected = selectedCharacter?.id == char.id;
+                return GestureDetector(
+                  onTap: () => setState(() => selectedCharacter = char),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: 80,
+                    margin: const EdgeInsets.only(right: 15),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
-                      borderRadius: const BorderRadius.all(
-                        Radius.elliptical(160, 25),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  height: double.infinity,
-                  child: O3D(
-                    key: ValueKey(previewSkin!.modelPath),
-                    src: previewSkin!.modelPath,
-                    controller: _controller,
-                    autoPlay: true,
-                    autoRotate: false,
-                    cameraControls: true,
-                    animationName: 'Idle',
-                    backgroundColor: Colors.transparent,
-                    exposure: 0.8,
-                  ),
-                ),
-                // --- ปุ่ม "Characters" (มุมซ้ายบน) ---
-                Positioned(
-                  top: 15,
-                  left: 15,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showCharacterSelectionDialog(context),
-                    icon: const Icon(Icons.people, color: Colors.white),
-                    label: const Text(
-                      "Characters",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.darkBlue.withOpacity(0.8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: const BorderSide(color: Colors.white24),
-                      ),
-                    ),
-                  ),
-                ),
-                // --- ปุ่ม "Coin" (มุมขวาบน) ---
-                Positioned(
-                  top: 20,
-                  right: 15,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.darkBlue.withOpacity(0.8),
+                      color: isSelected ? AppTheme.primaryPink : Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isSelected
+                              ? AppTheme.primaryPink.withOpacity(0.3)
+                              : Colors.black12,
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.monetization_on_rounded,
-                          color: Colors.amber,
-                          size: 20,
+                          char.gender == 'Male'
+                              ? Icons.boy_rounded
+                              : Icons.girl_rounded,
+                          size: 32,
+                          color: isSelected ? Colors.white : AppTheme.textLight,
                         ),
-                        SizedBox(width: 6),
                         Text(
-                          "1,000",
+                          char.name,
                           style: TextStyle(
-                            color: Colors.white,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            color: isSelected
+                                ? Colors.white
+                                : AppTheme.textLight,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                ValueListenableBuilder<Skin?>(
-                  valueListenable: PlayerState.currentSkin,
-                  builder: (context, globalSkin, _) {
-                    final globalChar = PlayerState.currentCharacter.value;
-                    final bool isDifferent =
-                        (previewSkin!.id != globalSkin?.id) ||
-                        (viewedCharacter!.id != globalChar?.id);
-                    if (isDifferent) {
-                      return Positioned(
-                        bottom: 10,
-                        child: ElevatedButton(
-                          onPressed: () =>
-                              _equipSkin(viewedCharacter!, previewSkin!),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryPink,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 40,
-                              vertical: 15,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: const Text(
-                            "USE THIS SKIN",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ],
+                );
+              }).toList(),
             ),
           ),
-          Container(
-            height: 320,
-            decoration: BoxDecoration(
-              color: AppTheme.darkBlue,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(30),
-              ),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+          // 2. โซนโมเดล 3D (Middle)
+          Expanded(
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
-                  child: Text(
-                    "Available Skins for ${viewedCharacter!.name}",
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                Positioned(
+                  bottom:
+                      55,
+                  child: Container(
+                    width: 120,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.12),
+                      borderRadius: const BorderRadius.all(
+                        Radius.elliptical(80, 15),
+                      ),
                     ),
                   ),
                 ),
-                Expanded(
-                  child: ValueListenableBuilder<Skin?>(
-                    valueListenable: PlayerState.currentSkin,
-                    builder: (context, globalSkin, _) {
-                      final globalChar = PlayerState.currentCharacter.value;
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 15),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: viewedCharacter!.skins.length,
-                        itemBuilder: (context, index) {
-                          final skin = viewedCharacter!.skins[index];
-                          final bool isPreviewing = previewSkin?.id == skin.id;
-                          final bool isEquipped =
-                              (globalSkin?.id == skin.id) &&
-                              (globalChar?.id == viewedCharacter!.id);
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                previewSkin = skin;
-                              });
-                            },
-                            child: Container(
-                              width: 140,
-                              margin: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppTheme.pureBlack,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isPreviewing
+
+                // โมเดล 3D
+                if (selectedCharacter != null)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 60,
+                    ),
+                    child: ValueListenableBuilder<Skin?>(
+                      valueListenable: PlayerState.currentSkin,
+                      builder: (context, currentSkin, child) {
+                        if (currentSkin == null)
+                          return const CircularProgressIndicator();
+                        return O3D(
+                          key: ValueKey(
+                            currentSkin.modelPath + selectedCharacter!.id,
+                          ),
+                          src: currentSkin.modelPath,
+                          controller: _controller,
+                          autoPlay: true,
+                          cameraControls: false,
+                          backgroundColor: Colors.transparent,
+                          exposure: 1.0,
+                          animationName: 'Run',
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // 3. โซนเลือกสกิน (Bottom)
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(top: 20, bottom: bottomPadding),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(35),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 15,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 25),
+                  child: Text(
+                    "OUTFITS",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textLight,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                SizedBox(
+                  height: 110,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: selectedCharacter?.skins.length ?? 0,
+                    itemBuilder: (context, index) {
+                      final skin = selectedCharacter!.skins[index];
+                      bool isEquipped =
+                          PlayerState.currentSkin.value?.id == skin.id;
+
+                      return GestureDetector(
+                        onTap: () => _equipSkin(selectedCharacter!, skin),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 100,
+                          margin: const EdgeInsets.only(right: 12, bottom: 5),
+                          decoration: BoxDecoration(
+                            color: isEquipped
+                                ? AppTheme.primaryPink.withOpacity(0.05)
+                                : Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: isEquipped
+                                  ? AppTheme.primaryPink
+                                  : Colors.grey.shade200,
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.checkroom_rounded,
+                                size: 28,
+                                color: isEquipped
+                                    ? AppTheme.primaryPink
+                                    : Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                skin.name,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isEquipped
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isEquipped
                                       ? AppTheme.primaryPink
-                                      : Colors.transparent,
-                                  width: 2,
+                                      : AppTheme.textLight,
                                 ),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.checkroom,
-                                    size: 50,
-                                    color: isEquipped
-                                        ? AppTheme.primaryPink
-                                        : Colors.white54,
+                              if (isEquipped)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
                                   ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    skin.name.toUpperCase(),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryPink,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Text(
+                                    "ACTIVE",
                                     style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8,
                                       fontWeight: FontWeight.bold,
-                                      color: isEquipped
-                                          ? AppTheme.primaryPink
-                                          : Colors.white,
                                     ),
                                   ),
-                                  if (isEquipped)
-                                    const Text(
-                                      "EQUIPPED",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                                ),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   ),
                 ),
-                const SizedBox(height: 120),
               ],
             ),
           ),

@@ -34,14 +34,21 @@ class _HomeScreenState extends State<HomeScreen> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         if (data.containsKey('characterId') && data.containsKey('skinId')) {
           try {
-            final foundChar = myCharacters.firstWhere((c) => c.id == data['characterId']);
-            final foundSkin = foundChar.skins.firstWhere((s) => s.id == data['skinId']);
+            final foundChar = myCharacters.firstWhere(
+              (c) => c.id == data['characterId'],
+            );
+            final foundSkin = foundChar.skins.firstWhere(
+              (s) => s.id == data['skinId'],
+            );
 
             if (mounted) {
               setState(() {
@@ -66,56 +73,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _navigateToSelectCharacter() {
     if (mounted) {
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (c) => const SelectCharacterScreen()),
       );
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
+      value: SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: Colors.transparent,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.pureBlack,
+        backgroundColor: AppTheme.backgroundCream,
         body: Stack(
           children: [
-            // 1. พื้นหลังเกม
+            // 1. พื้นหลัง (เอา colorBlendMode ออกเพื่อให้ภาพสว่าง)
             Positioned.fill(
               child: Image.asset(
-                'assets/images/home_bg.png',
+                'assets/images/home_bg.jpg',
                 fit: BoxFit.cover,
-                color: Colors.black.withOpacity(0.4),
-                colorBlendMode: BlendMode.darken,
+                // หากภาพพื้นหลังเดิมมืดไป สามารถปรับแต่งความโปร่งใสที่นี่
               ),
             ),
 
             // 2. ตัวละคร 3D
             Positioned.fill(
-              bottom: 100,
+              bottom: 60, // ดันขึ้นเล็กน้อยหลบ Navbar ใหม่
               child: ValueListenableBuilder<Skin?>(
                 valueListenable: PlayerState.currentSkin,
                 builder: (context, currentSkin, child) {
                   if (currentSkin == null) {
                     return const Center(
-                      child: CircularProgressIndicator(color: AppTheme.primaryPink),
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryPink,
+                      ),
                     );
                   }
                   return Stack(
                     alignment: Alignment.center,
                     children: [
                       Positioned(
-                        bottom: MediaQuery.of(context).size.height * 0.18,
+                        bottom: 200,
                         child: Container(
-                          width: 150,
-                          height: 18,
+                          width: 160,
+                          height: 16,
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            borderRadius: const BorderRadius.all(Radius.elliptical(160, 20)),
-                            
+                            color: Colors.black.withOpacity(0.12),
+                            borderRadius: const BorderRadius.all(
+                              Radius.elliptical(80, 8),
+                            ),
                           ),
                         ),
                       ),
@@ -136,14 +147,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // 3. UI HUD
+
+
+            // 4. UI HUD ด้านบน และปุ่ม Start ด้านล่าง
             SafeArea(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildGameHUD(context),
-                  _buildBottomControls(),
-                ],
+                children: [_buildGameHUD(context), _buildBottomControls()],
               ),
             ),
           ],
@@ -151,6 +161,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+
 
   Widget _buildGameHUD(BuildContext context) {
     return Padding(
@@ -165,21 +177,33 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ProfileScreen())),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (c) => const ProfileScreen()),
+                ),
                 child: Container(
                   width: 190,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkBlue.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.white24, width: 1.5),
+                    color: Colors.white.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.textLight.withOpacity(0.1),
+                        blurRadius: 10,
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
                       const CircleAvatar(
                         radius: 22,
-                        backgroundColor: AppTheme.pureBlack,
-                        child: Icon(Icons.person, color: AppTheme.primaryPink, size: 26),
+                        backgroundColor: AppTheme.backgroundCream,
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: AppTheme.primaryPink,
+                          size: 26,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -189,7 +213,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Text(
                               username,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              style: const TextStyle(
+                                color: AppTheme.textLight,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -199,14 +227,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: const LinearProgressIndicator(
                                 value: 0.7,
                                 minHeight: 6,
-                                backgroundColor: Colors.white24,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
+                                backgroundColor: AppTheme.backgroundCream,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primaryPink,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 4),
                             const Text(
                               "Lv. 99",
-                              style: TextStyle(color: AppTheme.primaryPink, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: AppTheme.primaryPink,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -216,7 +250,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              _buildBadge("1,000", Icons.monetization_on_rounded, Colors.amber),
+              _buildBadge(
+                "1,000",
+                Icons.monetization_on_rounded,
+                AppTheme.primaryRed,
+              ),
             ],
           ),
 
@@ -231,16 +269,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildTopIconButton(Icons.notifications_none_rounded, () {}),
                   const SizedBox(width: 10),
                   _buildTopIconButton(Icons.settings_rounded, () {
-                    Navigator.push(context, MaterialPageRoute(builder: (c) => const SettingsScreen()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (c) => const SettingsScreen()),
+                    );
                   }),
                 ],
               ),
               const SizedBox(height: 15),
-              _buildBadge("Streak 5", Icons.local_fire_department, Colors.orange),
+              _buildBadge(
+                "Streak 5",
+                Icons.local_fire_department_rounded,
+                Colors.orange,
+              ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PartyScreen())),
-                child: _buildBadge("Party", Icons.celebration_rounded, AppTheme.primaryPink),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PartyScreen()),
+                ),
+                child: _buildBadge(
+                  "Party",
+                  Icons.celebration_rounded,
+                  AppTheme.primaryPink,
+                ),
               ),
             ],
           ),
@@ -255,11 +307,16 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppTheme.darkBlue.withOpacity(0.8),
+          color: Colors.white.withOpacity(0.85),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white10),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.textLight.withOpacity(0.1),
+              blurRadius: 10,
+            ),
+          ],
         ),
-        child: Icon(icon, color: Colors.white, size: 24),
+        child: Icon(icon, color: AppTheme.textLight, size: 24),
       ),
     );
   }
@@ -269,19 +326,25 @@ class _HomeScreenState extends State<HomeScreen> {
       width: 100,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.darkBlue.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: color.withOpacity(0.4)),
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: AppTheme.textLight.withOpacity(0.1), blurRadius: 10),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 18),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              style: const TextStyle(
+                color: AppTheme.textLight,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -292,36 +355,77 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomControls() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 60), 
+      padding: const EdgeInsets.only(bottom: 50), // ดันปุ่มให้พ้น Navbar
       child: Center(
-        child: GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StartRunScreen())),
-          child: Container(
-            width: 260,
-            height: 75,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryPink.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(40),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryPink.withOpacity(0.4),
-                  blurRadius: 25,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-              border: Border.all(color: Colors.white.withOpacity(0.8), width: 2),
-            ),
-            child: const Center(
-              child: Text(
-                "TAP TO RUN",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.5,
-                  shadows: [Shadow(color: Colors.black38, offset: Offset(0, 3), blurRadius: 6)],
-                ),
-              ),
+        child: _GameStartButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const StartRunScreen()),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _GameStartButton extends StatefulWidget {
+  final VoidCallback onPressed;
+
+  const _GameStartButton({required this.onPressed});
+
+  @override
+  __GameStartButtonState createState() => __GameStartButtonState();
+}
+
+class __GameStartButtonState extends State<_GameStartButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      // เมื่อนิ้วแตะโดนปุ่ม
+      onTapDown: (_) => setState(() => _isPressed = true),
+      // เมื่อปล่อยนิ้ว (สั่งให้ทำงาน)
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onPressed();
+      },
+      // เมื่อลากนิ้วออกนอกปุ่มแล้วปล่อย
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        // ถ้านิ้วกดอยู่ ให้ปุ่มเลื่อนลงมาด้านล่าง (ยุบตัว)
+        margin: EdgeInsets.only(top: _isPressed ? 8.0 : 0.0),
+        width: 240,
+        height: 70,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryPink, // พื้นหลังสีเหลือง
+          borderRadius: BorderRadius.circular(35),
+          border: Border.all(
+            color: AppTheme.pureBlack, // เส้นขอบปุ่มสีดำหนา
+            width: 4,
+          ),
+          // ถ้านิ้วกดอยู่ เงาจะหายไป (เพราะปุ่มยุบลงไปติดพื้น)
+          boxShadow: _isPressed
+              ? []
+              : [
+                  const BoxShadow(
+                    color: AppTheme.pureBlack, // เงาทึบสีดำ
+                    blurRadius: 0, // ไม่เบลอเงาเลย
+                    offset: Offset(0, 8), // ความหนาของเงาปุ่ม
+                  ),
+                ],
+        ),
+        child: const Center(
+          child: Text(
+            "TAP TO RUN",
+            style: TextStyle(
+              color: AppTheme.pureBlack,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2.5,
             ),
           ),
         ),
