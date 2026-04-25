@@ -231,10 +231,19 @@ class _PartyScreenState extends State<PartyScreen> {
         bool isLeader = members[currentUserUid]?['isLeader'] ?? false;
 
         // เช็คว่าลูกทีมทุกคน (ยกเว้นเรา) กด Ready ครบหรือยัง
-        bool isAllReady = members.values.every((m) => m['isReady'] == true);
+        bool isOthersReady = true; // สมมติว่าพร้อมไว้ก่อน
+        if (members.length > 1) {
+          isOthersReady = members.entries
+              .where(
+                (entry) => entry.key != currentUserUid,
+              ) // ไม่เช็คสถานะของตัวเราเอง
+              .every(
+                (entry) => entry.value['isReady'] == true,
+              ); // เช็คว่าลูกทีมทุกคน Ready ไหม
+        }
 
         // 🌟 เพิ่มบรรทัดนี้: ถ้าในปาร์ตี้มีคนเดียว (length == 1) หรือ ทุกคนพร้อมแล้ว = ให้เริ่มได้!
-        bool canStart = members.length == 1 || isAllReady;
+        bool canStart = members.length == 1 || isOthersReady;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
