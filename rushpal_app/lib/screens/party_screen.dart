@@ -556,8 +556,8 @@ class _PartyScreenState extends State<PartyScreen> {
                     partyCode: codeInput,
                     uid: user.uid,
                     username:
-                        "Guest_Player", // TODO: อนาคตค่อยดึงชื่อจริงจาก Firestore
-                    skinId: "skin_m_1",
+                        "Guest_Player",
+                    skinId: PlayerState.currentSkin.value?.id ?? "skin_m_1",
                   );
 
                   if (joinedCode != null) {

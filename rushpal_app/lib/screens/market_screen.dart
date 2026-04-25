@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:o3d/o3d.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import '../models/character_model.dart';
+import 'package:rushpal/services/party_service.dart';
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
@@ -69,6 +70,8 @@ class _MarketScreenState extends State<MarketScreen> {
 
     PlayerState.currentCharacter.value = char;
     PlayerState.currentSkin.value = skin;
+    
+    await PartyService.syncSkinToParty(skin.id, uid);
 
     setState(() {});
 
