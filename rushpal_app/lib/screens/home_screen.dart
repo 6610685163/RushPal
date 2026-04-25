@@ -78,13 +78,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ฟังก์ชันโหลดข้อมูลสกินของคนในปาร์ตี้
   Future<void> _loadPartyMembers() async {
+    print("🎯 [DEBUG] เริ่มโหลดโมเดลเพื่อน รหัสห้อง: $currentPartyCode");
+
     if (currentPartyCode == null) {
+      print("❌ [DEBUG] currentPartyCode เป็น null");
       setState(() => partyMembersSkins = []);
       return;
     }
 
-    // ดึงข้อมูลเพื่อนจาก PartyService
     final members = await PartyService.getPartyDetails(currentPartyCode!);
+    print("🎯 [DEBUG] ข้อมูลเพื่อนที่ได้จาก API: $members");
+
     if (members != null) {
       List<Skin> loadedSkins = [];
       final myUid = FirebaseAuth.instance.currentUser?.uid;
@@ -93,23 +97,37 @@ class _HomeScreenState extends State<HomeScreen> {
         if (member['uid'] == myUid) continue; // ข้ามตัวเอง
 
         try {
+          bool found = false;
+          // หา skin จาก character_model.dart (ต้องแน่ใจว่า import มาแล้ว)
           for (var char in myCharacters) {
             for (var skin in char.skins) {
               if (skin.id == member['skinId']) {
+                print("✅ [DEBUG] เจอสกินของเพื่อน: ${skin.id}");
                 loadedSkins.add(skin);
+                found = true;
+                break; // หยุดลูปเมื่อเจอสกิน
               }
             }
+            if (found) break; // หยุดลูป character ถ้าเจอแล้ว
+          }
+          if (!found) {
+            print(
+              "❌ [DEBUG] หาโมเดลไม่เจอ! Backend ส่ง skinId มาเป็น: ${member['skinId']}",
+            );
           }
         } catch (e) {
-          debugPrint("Error loading skin ID: ${member['skinId']}");
+          print("❌ [DEBUG] Error หา Skin ID: $e");
         }
       }
 
+      print("🎯 [DEBUG] จำนวนโมเดลเพื่อนที่จะแสดง: ${loadedSkins.length}");
       if (mounted) {
         setState(() {
           partyMembersSkins = loadedSkins;
         });
       }
+    } else {
+      print("❌ [DEBUG] API คืนค่า members กลับมาเป็น null");
     }
   }
 
