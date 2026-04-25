@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rushpal/theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart'; // เพิ่มการเรียกใช้ DatabaseService
 
 class RunCompleteScreen extends StatelessWidget {
@@ -10,6 +11,7 @@ class RunCompleteScreen extends StatelessWidget {
   final double distance;
   final int calories;
   final List<List<LatLng>> routeSegments;
+  final String? partyCode;
 
   const RunCompleteScreen({
     super.key,
@@ -17,6 +19,7 @@ class RunCompleteScreen extends StatelessWidget {
     required this.distance,
     required this.calories,
     required this.routeSegments,
+    this.partyCode,
   });
 
   String _formatTime(Duration d) {
@@ -210,6 +213,14 @@ class RunCompleteScreen extends StatelessWidget {
                     seconds: duration.inSeconds,
                     calories: calories, // ส่งจากหน้าจอ Summary
                   );
+
+                  // ลบห้อง party ออกจาก database
+                  if (partyCode != null) {
+                    await FirebaseFirestore.instance
+                        .collection('parties')
+                        .doc(partyCode)
+                        .delete();
+                  }
 
                   if (context.mounted) {
                     Navigator.pop(context); // ปิด Loading

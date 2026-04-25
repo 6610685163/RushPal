@@ -8,7 +8,8 @@ import 'package:rushpal/theme/app_theme.dart';
 import 'run_complete_screen.dart';
 
 class StartRunScreen extends StatefulWidget {
-  const StartRunScreen({super.key});
+  final String? partyCode;
+  const StartRunScreen({super.key, this.partyCode});
 
   @override
   State<StartRunScreen> createState() => _StartRunScreenState();
@@ -149,6 +150,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
           distance: double.parse((totalDistance / 1000).toStringAsFixed(2)),
           calories: calories,
           routeSegments: routeSegments,
+          partyCode: widget.partyCode,
         ),
       ),
     );
