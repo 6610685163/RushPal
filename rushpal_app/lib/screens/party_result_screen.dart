@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/services/party_service.dart';
+import 'package:rushpal/widgets/user_avatar.dart';
 
 class PartyResultScreen extends StatefulWidget {
   final String partyCode;
@@ -16,13 +17,12 @@ class PartyResultScreen extends StatefulWidget {
 class _PartyResultScreenState extends State<PartyResultScreen> {
   final supabase = Supabase.instance.client;
 
-  // ฟังก์ชันดึงสถิติของทุกคนจาก Supabase โดยใช้ partycode
   Future<List<dynamic>> _fetchPartyStats() async {
     final response = await supabase
         .from('runs')
         .select()
         .eq('partycode', widget.partyCode)
-        .order('distance', ascending: false); // เรียงลำดับคนวิ่งเยอะสุดขึ้นก่อน
+        .order('distance', ascending: false);
     return response as List<dynamic>;
   }
 
@@ -37,16 +37,22 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData)
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryPink),
+            );
 
           if (!snapshot.data!.exists) {
-            return const Center(child: Text("Data missing..."));
+            return const Center(
+              child: Text(
+                "Data missing...",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            );
           }
 
           var partyData = snapshot.data!.data() as Map<String, dynamic>;
           var members = partyData['members'] as Map<String, dynamic>;
 
-          // นับจำนวนคนที่วิ่งเสร็จแล้ว
           int finishedCount = members.values
               .where((m) => m['status'] == 'finished')
               .length;
@@ -62,40 +68,44 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
                     color: AppTheme.pureBlack,
+                    letterSpacing: 2,
                   ),
                 ),
                 Text(
-                  "Room: ${widget.partyCode}",
+                  "ROOM: ${widget.partyCode}",
                   style: const TextStyle(
                     color: Colors.grey,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 25),
 
-                // ส่วนแสดงสถานะการรอเพื่อน
                 if (!isAllFinished)
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Colors.orange),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.orange, width: 3),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.orange, offset: Offset(0, 4)),
+                      ],
                     ),
                     child: Row(
                       children: [
                         const CircularProgressIndicator(
-                          strokeWidth: 2,
+                          strokeWidth: 3,
                           color: Colors.orange,
                         ),
                         const SizedBox(width: 15),
                         Text(
-                          "Waiting for friends... ($finishedCount/${members.length})",
+                          "WAITING FRIENDS ($finishedCount/${members.length})",
                           style: const TextStyle(
                             color: Colors.orange,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ],
@@ -108,7 +118,11 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                     builder: (context, statsSnapshot) {
                       if (statsSnapshot.connectionState ==
                           ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: AppTheme.primaryPink,
+                          ),
+                        );
                       }
 
                       final stats = statsSnapshot.data ?? [];
@@ -117,11 +131,9 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                         padding: const EdgeInsets.all(20),
                         itemCount: members.length,
                         itemBuilder: (context, index) {
-                          // ดึง UID ของสมาชิกแต่ละคนมาเช็ค
                           String uid = members.keys.elementAt(index);
                           var memberInfo = members[uid];
 
-                          // ค้นหาสถิติของคนนี้จาก Supabase List
                           int statIndex = stats.indexWhere(
                             (s) => s['user_id'] == uid,
                           );
@@ -133,6 +145,7 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                             memberInfo['username'] ?? "Unknown",
                             userStat,
                             uid == FirebaseAuth.instance.currentUser?.uid,
+                            uid,
                           );
                         },
                       );
@@ -140,49 +153,48 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                   ),
                 ),
 
-                // ปุ่มกลับหน้า Home พร้อมลบชื่อออกจากปาร์ตี้
                 Padding(
                   padding: const EdgeInsets.all(24.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 60,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user != null) {
-                          // 🌟 สั่ง Leave Party เพื่อเคลียร์ชื่อตัวเองออก
-                          await PartyService.leaveParty(
-                            partyCode: widget.partyCode,
-                            uid: user.uid,
-                          );
-                        }
-                        // กลับไปหน้า Home และล้างหน้าจอเก่าออกให้หมด
-                        Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryPink,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          side: const BorderSide(
+                  child: GestureDetector(
+                    onTap: () async {
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (user != null) {
+                        await PartyService.leaveParty(
+                          partyCode: widget.partyCode,
+                          uid: user.uid,
+                        );
+                      }
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 65,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryPink,
+                        borderRadius: BorderRadius.circular(35),
+                        border: Border.all(color: AppTheme.pureBlack, width: 4),
+                        boxShadow: const [
+                          BoxShadow(
                             color: AppTheme.pureBlack,
-                            width: 3,
+                            offset: Offset(0, 8),
                           ),
-                        ),
-                        elevation: 0,
+                        ],
                       ),
-                      child: const Text(
-                        "BACK TO HOME",
-                        style: TextStyle(
-                          color: AppTheme.pureBlack,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
+                      child: const Center(
+                        child: Text(
+                          "BACK TO HOME",
+                          style: TextStyle(
+                            color: AppTheme.pureBlack,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
               ],
             ),
           );
@@ -191,23 +203,36 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
     );
   }
 
-  Widget _buildResultCard(String name, dynamic stat, bool isMe) {
+  Widget _buildResultCard(String name, dynamic stat, bool isMe, String uid) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isMe ? AppTheme.primaryPink : AppTheme.pureBlack,
-          width: isMe ? 4 : 2,
+          width: 4,
         ),
+        boxShadow: const [
+          BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+        ],
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            backgroundColor: AppTheme.backgroundCream,
-            child: Icon(Icons.person, color: AppTheme.primaryRed),
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              String? imageUrl;
+              if (snapshot.hasData && snapshot.data!.exists) {
+                var userData = snapshot.data!.data() as Map<String, dynamic>;
+                imageUrl = userData['profileImageUrl'];
+              }
+              return UserAvatar(imageUrl: imageUrl, radius: 24);
+            },
           ),
           const SizedBox(width: 15),
           Expanded(
@@ -217,30 +242,53 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                 Text(
                   isMe ? "$name (Me)" : name,
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
                     fontSize: 18,
+                    color: AppTheme.pureBlack,
                   ),
                 ),
                 if (stat != null)
                   Text(
-                    "Distance: ${stat['distance']} km | Pace: ${stat['pace']}",
-                    style: const TextStyle(color: Colors.grey),
+                    "${stat['distance']} km | ${stat['pace']} /km",
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   )
                 else
                   const Text(
-                    "Still running...",
-                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                    "Running...",
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
               ],
             ),
           ),
           if (stat != null)
-            Text(
-              "${stat['calories']} kcal",
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                color: AppTheme.primaryRed,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "${stat['calories']}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.primaryRed,
+                    fontSize: 18,
+                  ),
+                ),
+                const Text(
+                  "KCAL",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Colors.grey,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
         ],
       ),

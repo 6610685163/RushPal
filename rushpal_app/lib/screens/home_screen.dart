@@ -13,7 +13,7 @@ import 'settings_screen.dart';
 import 'profile_screen.dart';
 import 'start_run_screen.dart';
 import 'party_screen.dart';
-
+import 'package:rushpal/widgets/user_avatar.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -24,11 +24,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final O3DController _controller = O3DController();
   String username = "Loading...";
-  
+  String? profileImageUrl; // ตัวแปรสำหรับเก็บ URL รูป
+
   // ตัวแปรสำหรับข้อมูล Database
   int userLevel = 1;
   int userPoints = 0;
-  int userExp = 0; // 💡 เพิ่มตัวแปรเก็บ EXP
+  int userExp = 0;
   StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   String? currentPartyCode;
@@ -38,8 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _listenToUserData(); 
-    _checkExistingParty(); 
+    _listenToUserData();
+    _checkExistingParty();
   }
 
   @override
@@ -58,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           currentPartyCode = savedPartyCode;
         });
-        _loadPartyMembers(); 
+        _loadPartyMembers();
       }
     }
   }
@@ -71,46 +72,52 @@ class _HomeScreenState extends State<HomeScreen> {
         .collection('users')
         .doc(uid)
         .snapshots()
-        .listen((doc) {
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        
-        if (mounted) {
-          setState(() {
-            username = data['username'] ?? "User";
-            userLevel = data['level'] ?? 1;
-            userPoints = data['points'] ?? 0;
-            userExp = data['exp'] ?? 0; // 💡 ดึงข้อมูล EXP มาจาก Firebase
-          });
-        }
+        .listen(
+          (doc) {
+            if (doc.exists && doc.data() != null) {
+              final data = doc.data()!;
 
-        if (data.containsKey('characterId') && data.containsKey('skinId')) {
-          try {
-            final foundChar = myCharacters.firstWhere(
-              (c) => c.id == data['characterId'],
-            );
-            final foundSkin = foundChar.skins.firstWhere(
-              (s) => s.id == data['skinId'],
-            );
+              if (mounted) {
+                setState(() {
+                  username = data['username'] ?? "User";
+                  userLevel = data['level'] ?? 1;
+                  userPoints = data['points'] ?? 0;
+                  userExp = data['exp'] ?? 0;
+                  profileImageUrl =
+                      data['profileImageUrl']; // รับค่า URL รูปมาเก็บไว้
+                });
+              }
 
-            if (mounted) {
-              setState(() {
-                PlayerState.currentCharacter.value = foundChar;
-                PlayerState.currentSkin.value = foundSkin;
-              });
+              if (data.containsKey('characterId') &&
+                  data.containsKey('skinId')) {
+                try {
+                  final foundChar = myCharacters.firstWhere(
+                    (c) => c.id == data['characterId'],
+                  );
+                  final foundSkin = foundChar.skins.firstWhere(
+                    (s) => s.id == data['skinId'],
+                  );
+
+                  if (mounted) {
+                    setState(() {
+                      PlayerState.currentCharacter.value = foundChar;
+                      PlayerState.currentSkin.value = foundSkin;
+                    });
+                  }
+                } catch (e) {
+                  _navigateToSelectCharacter();
+                }
+              } else {
+                _navigateToSelectCharacter();
+              }
+            } else {
+              _navigateToSelectCharacter();
             }
-          } catch (e) {
-            _navigateToSelectCharacter();
-          }
-        } else {
-          _navigateToSelectCharacter();
-        }
-      } else {
-        _navigateToSelectCharacter();
-      }
-    }, onError: (e) {
-      if (mounted) setState(() => username = "Guest");
-    });
+          },
+          onError: (e) {
+            if (mounted) setState(() => username = "Guest");
+          },
+        );
   }
 
   void _loadPartyMembers() {
@@ -280,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     List<double> xPositions = [45.0, -45.0, -140.0, 140.0];
                     for (int i = 3; i >= 1; i--) {
                       characterStack.add(
-                        buildCharacter(allSkins[i], i, xPositions[i], 120.0),
+                        buildCharacter(allSkins[i], i, xPositions[i], 100),
                       );
                     }
                     characterStack.add(
@@ -292,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       double side = (i % 2 != 0) ? -1.0 : 1.0;
                       double xPos = depth * 100.0 * side;
                       characterStack.add(
-                        buildCharacter(allSkins[i], i, xPos, 140.0),
+                        buildCharacter(allSkins[i], i, xPos, 100),
                       );
                     }
                     characterStack.add(
@@ -336,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(builder: (c) => const ProfileScreen()),
                 ),
                 child: Container(
-                  width: 210, // ปรับความกว้างนิดนึงให้พอดีกับข้อความ EXP
+                  width: 210,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.85),
@@ -350,15 +357,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 22,
-                        backgroundColor: AppTheme.backgroundCream,
-                        child: Icon(
-                          Icons.person_rounded,
-                          color: AppTheme.primaryPink,
-                          size: 26,
-                        ),
-                      ),
+                      // เปลี่ยนมาใช้ UserAvatar แทน CircleAvatar เดิมที่เคยใส่ Icon ไว้
+                      UserAvatar(imageUrl: profileImageUrl, radius: 22),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -375,17 +375,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 6), // 💡 เพิ่มช่องไฟนิดหน่อย
-                            
-                            // 💡 ระบบคำนวณหลอด EXP แบบ Real-time
+                            const SizedBox(height: 6),
+
                             Builder(
                               builder: (context) {
-                                // ⚠️ ถ้าตอนเทสใน Node.js ตั้งไว้ที่ 50 ให้แก้เลข 5000 ตรงนี้เป็น 50 ชั่วคราวด้วยนะครับ
-                                int expNeeded = userLevel * 50; 
-                                
-                                // ป้องกันการหารด้วย 0 และบังคับไม่ให้หลอดเกิน 1.0 (100%)
-                                double progress = expNeeded > 0 
-                                    ? (userExp / expNeeded).clamp(0.0, 1.0) 
+                                int expNeeded = userLevel * 50;
+
+                                double progress = expNeeded > 0
+                                    ? (userExp / expNeeded).clamp(0.0, 1.0)
                                     : 0.0;
 
                                 return Column(
@@ -394,17 +391,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(10),
                                       child: LinearProgressIndicator(
-                                        value: progress, // ใช้ค่าที่คำนวณจริง
-                                        minHeight: 8, // 💡 หนาขึ้นเห็นชัดกว่าเดิม
-                                        backgroundColor: Colors.grey.shade300, // 💡 พื้นหลังสีเทาให้ตัดกับชมพู
-                                        valueColor: const AlwaysStoppedAnimation<Color>(
-                                          AppTheme.primaryPink,
-                                        ),
+                                        value: progress,
+                                        minHeight: 8,
+                                        backgroundColor: Colors.grey.shade300,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                              AppTheme.primaryPink,
+                                            ),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           "Lv. $userLevel",
@@ -414,7 +413,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        // 💡 โชว์ตัวเลข EXP ให้เห็นชัดๆ ว่าต้องวิ่งอีกเท่าไหร่
                                         Text(
                                           "$userExp / $expNeeded EXP",
                                           style: const TextStyle(
@@ -427,7 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ],
                                 );
-                              }
+                              },
                             ),
                           ],
                         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
-import '../services/database_service.dart'; // 👈 อย่าลืม import service ของเรา
+import '../services/database_service.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -9,12 +9,9 @@ class StatsScreen extends StatefulWidget {
 }
 
 class _StatsScreenState extends State<StatsScreen> {
-  // ตัวแปรเก็บสถานะ
-  String _selectedTimeFrame =
-      'weekly'; // ค่าเริ่มต้นคือรายสัปดาห์ ('daily', 'weekly', 'monthly')
+  String _selectedTimeFrame = 'weekly';
   bool _isLoading = true;
 
-  // ตัวแปรเก็บข้อมูลสถิติ
   double _totalDistance = 0.0;
   int _totalSeconds = 0;
   int _totalCalories = 0;
@@ -22,15 +19,13 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   void initState() {
     super.initState();
-    // โหลดข้อมูลทันทีที่เปิดหน้านี้ขึ้นมา
     _fetchStatsData(_selectedTimeFrame);
   }
 
-  // ฟังก์ชันดึงข้อมูลจาก Backend
   Future<void> _fetchStatsData(String timeFrame) async {
     setState(() {
-      _isLoading = true; // เปิดวงกลมโหลด
-      _selectedTimeFrame = timeFrame; // อัปเดตปุ่มที่ถูกเลือก
+      _isLoading = true;
+      _selectedTimeFrame = timeFrame;
     });
 
     final db = DatabaseService();
@@ -38,16 +33,14 @@ class _StatsScreenState extends State<StatsScreen> {
 
     if (stats != null && mounted) {
       setState(() {
-        // อัปเดตค่าที่ได้จาก Backend ลงไปในตัวแปร
         _totalDistance = (stats['total_distance'] as num?)?.toDouble() ?? 0.0;
         _totalSeconds = (stats['total_time_seconds'] as num?)?.toInt() ?? 0;
         _totalCalories = (stats['total_calories'] as num?)?.toInt() ?? 0;
-        _isLoading = false; // ปิดโหลด
+        _isLoading = false;
       });
     } else if (mounted) {
       setState(() {
         _isLoading = false;
-        // กรณีดึงข้อมูลไม่ได้ ให้รีเซ็ตเป็น 0
         _totalDistance = 0.0;
         _totalSeconds = 0;
         _totalCalories = 0;
@@ -55,7 +48,6 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
-  // ฟังก์ชันช่วยแปลงวินาที เป็น ชั่วโมง/นาที ให้อ่านง่ายๆ
   String _formatTime(int seconds) {
     int hours = seconds ~/ 3600;
     int minutes = (seconds % 3600) ~/ 60;
@@ -69,18 +61,19 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.pureBlack,
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
         title: const Text(
-          "Stats",
+          "MY STATS",
           style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+            color: AppTheme.pureBlack,
+            fontWeight: FontWeight.w900,
             fontSize: 20,
+            letterSpacing: 2,
           ),
         ),
       ),
@@ -89,18 +82,18 @@ class _StatsScreenState extends State<StatsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ส่วนตัวกรองเวลา (กดได้)
+            // ส่วนตัวกรองเวลา
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildTimeFilter("Day", 'daily'),
-                _buildTimeFilter("Week", 'weekly'),
-                _buildTimeFilter("Month", 'monthly'),
+                _buildTimeFilter("DAY", 'daily'),
+                _buildTimeFilter("WEEK", 'weekly'),
+                _buildTimeFilter("MONTH", 'monthly'),
               ],
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
 
-            // กราฟแท่ง (ตรงนี้ยังเป็น UI จำลองไว้ก่อนนะครับ เพราะ Backend ส่งมายอดรวม)
+            // กราฟแท่งสไตล์เกม
             SizedBox(
               height: 200,
               child: Row(
@@ -117,10 +110,9 @@ class _StatsScreenState extends State<StatsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
 
             // ส่วนแสดงข้อมูลตัวเลข
-            // ถ้ากำลังโหลดข้อมูลอยู่ ให้โชว์วงกลมหมุนๆ แทน
             _isLoading
                 ? const Center(
                     child: Padding(
@@ -135,59 +127,65 @@ class _StatsScreenState extends State<StatsScreen> {
                       _buildStatCard(
                         "Distance",
                         "${_totalDistance.toStringAsFixed(2)} km",
-                        Icons.directions_run,
+                        Icons.directions_run_rounded,
                         Colors.blue,
                       ),
                       const SizedBox(height: 15),
                       _buildStatCard(
                         "Time",
                         _formatTime(_totalSeconds),
-                        Icons.access_time,
+                        Icons.access_time_rounded,
                         Colors.purple,
                       ),
                       const SizedBox(height: 15),
                       _buildStatCard(
                         "Calories burned",
-                        "$_totalCalories cal", // แปลงตัวเลขตรงๆ ได้เลย
-                        Icons.local_fire_department,
-                        AppTheme.primaryPink,
+                        "$_totalCalories cal",
+                        Icons.local_fire_department_rounded,
+                        AppTheme.primaryRed,
                       ),
                     ],
                   ),
+            const SizedBox(height: 80), // เผื่อที่ให้ Bottom Nav
           ],
         ),
       ),
     );
   }
 
-  // แก้ไขปุ่มฟิลเตอร์ให้กดได้ด้วย GestureDetector
   Widget _buildTimeFilter(String text, String timeFrameValue) {
     bool isActive = _selectedTimeFrame == timeFrameValue;
 
     return GestureDetector(
       onTap: () {
-        // เมื่อกดปุ่ม ให้เรียกฟังก์ชันโหลดข้อมูลใหม่พร้อมกับเวลาที่เลือก
-        if (!isActive) {
-          _fetchStatsData(timeFrameValue);
-        }
+        if (!isActive) _fetchStatsData(timeFrameValue);
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive
-                ? AppTheme.primaryPink
-                : AppTheme.darkBlue.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isActive ? Colors.white : Colors.white24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(horizontal: 6.0),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.primaryPink : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.pureBlack,
+            width: 3,
           ),
-          child: Text(
-            text,
-            style: TextStyle(
-              color: isActive ? Colors.white : Colors.white54,
-              fontWeight: FontWeight.bold,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.pureBlack,
+              offset: isActive
+                  ? const Offset(0, 4)
+                  : const Offset(0, 2), 
             ),
+          ],
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isActive ? AppTheme.pureBlack : Colors.grey.shade600,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
           ),
         ),
       ),
@@ -199,21 +197,32 @@ class _StatsScreenState extends State<StatsScreen> {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Container(
-          width: 12,
+          width: 18,
           height: 150 * heightFactor,
           decoration: BoxDecoration(
             color: AppTheme.primaryPink,
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: [
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppTheme.pureBlack,
+              width: 2,
+            ),
+            boxShadow: const [
               BoxShadow(
-                color: AppTheme.primaryPink.withOpacity(0.5),
-                blurRadius: 10,
+                color: AppTheme.pureBlack,
+                offset: Offset(2, 2),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        Text(day, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+        const SizedBox(height: 12),
+        Text(
+          day,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textLight,
+          ),
+        ),
       ],
     );
   }
@@ -225,21 +234,27 @@ class _StatsScreenState extends State<StatsScreen> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: AppTheme.darkBlue.withOpacity(0.6),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppTheme.pureBlack, width: 3),
+        boxShadow: const [
+          BoxShadow(
+            color: AppTheme.pureBlack,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 30),
           ),
           const SizedBox(width: 20),
           Column(
@@ -248,18 +263,19 @@ class _StatsScreenState extends State<StatsScreen> {
               Text(
                 title.toUpperCase(),
                 style: const TextStyle(
-                  color: Colors.white54,
+                  color: Colors.grey,
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.pureBlack,
                 ),
               ),
             ],

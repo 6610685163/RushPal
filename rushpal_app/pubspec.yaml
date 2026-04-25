@@ -30,10 +30,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  supabase_flutter: ^2.6.0  # เพิ่มบรรทัดนี้
-  firebase_core:
-  firebase_auth:
-  cloud_firestore:
+  image_picker: ^1.0.7
+  firebase_storage: ^11.6.0
+  supabase_flutter: ^2.6.0
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.20.0
+  cloud_firestore: ^4.17.5
   
   google_sign_in: ^6.2.1
   google_fonts: ^6.1.0
@@ -43,16 +45,17 @@ dependencies:
   google_maps_flutter: ^2.6.0
   # สำหรับจัดการ State (คะแนน, เลเวล, ของแต่งตัว)
   provider: ^6.1.2
-  # สำหรับทำ Animation ตัวละคร (หรือใช้ rive ถ้าต้องการตัวละครขยับได้สวยๆ)
+  # สำหรับทำ Animation ตัวละคร
   rive: ^0.13.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  geolocator: ^14.0.2
+  geolocator: ^12.0.0
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   flutter_dotenv: ^6.0.0
   o3d: ^3.1.0
+  cached_network_image: ^3.4.0
 
 dev_dependencies:
   flutter_test:

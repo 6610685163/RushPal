@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'edit_profile_screen.dart';
 import '../services/database_service.dart';
+import 'package:rushpal/widgets/user_avatar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,11 +20,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int level = 1;
   int friendsCount = 0;
   int trophiesCount = 0;
+  String? profileImageUrl;
 
   // ตัวแปร Stats การวิ่ง (จาก Supabase)
   bool _isLoadingStats = true;
   double totalDistance = 0.0;
-  String bestPace = "0:00 /km"; // 👈 กลับมาใช้ bestPace
+  String bestPace = "0:00 /km";
   double totalTimeHrs = 0.0;
   int totalCalories = 0;
 
@@ -52,18 +54,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .doc(uid)
         .snapshots()
         .listen((doc) {
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        if (mounted) {
-          setState(() {
-            username = data['username'] ?? "User";
-            level = data['level'] ?? 1;
-            final friendsList = data['friends'] as List<dynamic>? ?? [];
-            friendsCount = friendsList.length;
-          });
-        }
-      }
-    });
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            if (mounted) {
+              setState(() {
+                username = data['username'] ?? "User";
+                level = data['level'] ?? 1;
+                final friendsList = data['friends'] as List<dynamic>? ?? [];
+                friendsCount = friendsList.length;
+                profileImageUrl = data['profileImageUrl'];
+              });
+            }
+          }
+        });
   }
 
   // 2. ฟังก์ชันดึงข้อมูลสถิติรวมทั้งหมดจาก Supabase
@@ -81,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // แปลงวินาทีเป็นชั่วโมงแบบทศนิยม (เช่น 1.5 hrs)
         totalTimeHrs = totalSeconds / 3600.0;
 
-        // 👈 ดึงค่า Best Pace ที่ Backend หามาให้ และแปลงเป็น นาที:วินาที
+        // ดึงค่า Best Pace ที่ Backend หามาให้ และแปลงเป็น นาที:วินาที
         double? bestPaceDecimal = (stats['best_pace'] as num?)?.toDouble();
         if (bestPaceDecimal != null && bestPaceDecimal > 0) {
           int minutes = bestPaceDecimal.floor();
@@ -103,21 +106,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.pureBlack, 
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.pureBlack),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Profile",
+          "PROFILE",
           style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+            color: AppTheme.pureBlack,
+            fontWeight: FontWeight.w900,
+            fontSize: 20,
+            letterSpacing: 2,
           ),
         ),
       ),
@@ -135,32 +139,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppTheme.primaryPink.withOpacity(0.5),
+                      color: Colors.white,
+                      border: Border.all(color: AppTheme.pureBlack, width: 3),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: AppTheme.pureBlack,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: const CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppTheme.darkBlue,
-                      child: Icon(Icons.person, size: 60, color: AppTheme.primaryPink),               
-                    ),
+                    child: UserAvatar(imageUrl: profileImageUrl, radius: 50),
                   ),
                   Positioned(
-                    bottom: 0,
+                    bottom: -5,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 14,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryPink,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.pureBlack, width: 2),
+                        border: Border.all(color: AppTheme.pureBlack, width: 3),
                       ),
                       child: Text(
-                        "Level $level",
+                        "Lv. $level",
                         style: const TextStyle(
                           color: AppTheme.pureBlack,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
@@ -168,15 +175,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
 
             // Name
             Text(
               username,
               style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.pureBlack,
               ),
             ),
 
@@ -188,40 +195,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 _buildCountItem("Friends", friendsCount.toString()),
                 Container(
-                  height: 30,
-                  width: 1,
-                  color: AppTheme.primaryPink.withOpacity(0.3),
+                  height: 40,
+                  width: 3,
+                  color: AppTheme.pureBlack.withOpacity(0.1),
                   margin: const EdgeInsets.symmetric(horizontal: 30),
                 ),
-                _buildCountItem("Trophy earned", trophiesCount.toString()),
+                _buildCountItem("Trophies", trophiesCount.toString()),
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
 
             // Edit Profile Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EditProfileScreen(),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EditProfileScreen(),
                     ),
-                    side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: AppTheme.pureBlack, width: 3),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AppTheme.pureBlack,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    "Edit profile",
-                    style: TextStyle(color: Colors.white),
+                  child: const Center(
+                    child: Text(
+                      "EDIT PROFILE",
+                      style: TextStyle(
+                        color: AppTheme.pureBlack,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -229,45 +248,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 30),
 
-            // Stats Grid 
+            // Stats Grid
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _isLoadingStats 
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryPink))
-                : GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.5,
-                    mainAxisSpacing: 15,
-                    crossAxisSpacing: 15,
-                    children: [
-                      _buildStatCard(
-                        "Total Distance",
-                        "${totalDistance.toStringAsFixed(1)} km",
-                        Icons.directions_run,
-                        Colors.blue,
+              child: _isLoadingStats
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryPink,
                       ),
-                      _buildStatCard(
-                        "Best Pace", // 👈 เปลี่ยนเป็น Best Pace 
-                        bestPace,
-                        Icons.timer,
-                        Colors.orange,
-                      ),
-                      _buildStatCard(
-                        "Total Time",
-                        "${totalTimeHrs.toStringAsFixed(1)} hrs",
-                        Icons.access_time,
-                        Colors.purple,
-                      ),
-                      _buildStatCard(
-                        "Calories Burned",
-                        "$totalCalories cal",
-                        Icons.local_fire_department,
-                        Colors.red,
-                      ),
-                    ],
-                  ),
+                    )
+                  : GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      childAspectRatio: 1.3,
+                      mainAxisSpacing: 15,
+                      crossAxisSpacing: 15,
+                      children: [
+                        _buildStatCard(
+                          "Total Distance",
+                          "${totalDistance.toStringAsFixed(1)} km",
+                          Icons.directions_run,
+                          Colors.blue,
+                        ),
+                        _buildStatCard(
+                          "Best Pace",
+                          bestPace,
+                          Icons.timer,
+                          Colors.orange,
+                        ),
+                        _buildStatCard(
+                          "Total Time",
+                          "${totalTimeHrs.toStringAsFixed(1)} hrs",
+                          Icons.access_time,
+                          Colors.purple,
+                        ),
+                        _buildStatCard(
+                          "Calories",
+                          "$totalCalories cal",
+                          Icons.local_fire_department,
+                          AppTheme.primaryRed,
+                        ),
+                      ],
+                    ),
             ),
 
             const SizedBox(height: 30),
@@ -282,18 +305,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "Trophies",
+                        "TROPHIES",
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.pureBlack,
+                          letterSpacing: 1.2,
                         ),
                       ),
                       TextButton(
                         onPressed: () {},
                         child: const Text(
                           "See all",
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -301,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 10),
                   // Trophy List
                   SizedBox(
-                    height: 100,
+                    height: 110,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
@@ -327,10 +354,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           count,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: AppTheme.pureBlack,
+          ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
@@ -342,23 +380,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.darkBlue.withOpacity(0.6), 
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.pureBlack, width: 3),
+        boxShadow: const [
+          BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 28),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+            ],
+          ),
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.pureBlack,
+            ),
           ),
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -366,24 +429,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildTrophyItem(String name, Color color) {
     return Container(
-      width: 80,
+      width: 85,
       margin: const EdgeInsets.only(right: 15),
       child: Column(
         children: [
           Container(
-            height: 60,
-            width: 60,
+            height: 70,
+            width: 70,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withOpacity(0.1),
               shape: BoxShape.circle,
-              border: Border.all(color: color.withOpacity(0.5)),
+              border: Border.all(color: AppTheme.pureBlack, width: 3),
+              boxShadow: const [
+                BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 3)),
+              ],
             ),
-            child: Icon(Icons.emoji_events, color: color, size: 30),
+            child: Icon(Icons.emoji_events_rounded, color: color, size: 35),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 10),
           Text(
             name,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.pureBlack,
+            ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
