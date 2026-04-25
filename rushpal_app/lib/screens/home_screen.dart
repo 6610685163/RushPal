@@ -437,8 +437,9 @@ class _HomeScreenState extends State<HomeScreen> {
           .doc(currentUser.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || !snapshot.data!.exists)
+        if (!snapshot.hasData || !snapshot.data!.exists) {
           return const SizedBox.shrink();
+        }
 
         final userData = snapshot.data!.data() as Map<String, dynamic>;
         final List<dynamic> invites = userData['partyInvites'] ?? [];
@@ -592,8 +593,9 @@ class _HomeScreenState extends State<HomeScreen> {
           .doc(currentPartyCode)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || !snapshot.data!.exists)
+        if (!snapshot.hasData || !snapshot.data!.exists) {
           return const SizedBox.shrink();
+        }
 
         var partyData = snapshot.data!.data() as Map<String, dynamic>;
         var members = partyData['members'] as Map<String, dynamic>;
@@ -606,8 +608,9 @@ class _HomeScreenState extends State<HomeScreen> {
             bool isReady = data['isReady'] ?? false;
 
             // ซ่อนชื่อเราเอง
-            if (uid == FirebaseAuth.instance.currentUser!.uid)
+            if (uid == FirebaseAuth.instance.currentUser!.uid) {
               return const SizedBox.shrink();
+            }
 
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
