@@ -98,6 +98,42 @@ exports.getPendingRequests = async (req, res) => {
     }
 };
 
+exports.declineRequest = async (req, res) => {
+    try {
+        const { myUid, friendUid } = req.body;
+
+        // ลบ UID ของคนส่ง request ออกจากตู้จดหมายของเรา
+        await db.collection('users').doc(myUid).update({
+            friendRequests: admin.firestore.FieldValue.arrayRemove(friendUid)
+        });
+
+        res.status(200).json({ message: "ปฏิเสธคำขอเป็นเพื่อนแล้ว" });
+    } catch (error) {
+        res.status(500).json({ message: "Error", error: error.message });
+    }
+};
+
+exports.removeFriend = async (req, res) => {
+    try {
+        const { myUid, friendUid } = req.body;
+        const usersRef = db.collection('users');
+
+        // ลบออกจากทั้ง 2 ฝั่งพร้อมกัน
+        await Promise.all([
+            usersRef.doc(myUid).update({
+                friends: admin.firestore.FieldValue.arrayRemove(friendUid)
+            }),
+            usersRef.doc(friendUid).update({
+                friends: admin.firestore.FieldValue.arrayRemove(myUid)
+            })
+        ]);
+
+        res.status(200).json({ message: "ลบเพื่อนสำเร็จ" });
+    } catch (error) {
+        res.status(500).json({ message: "Error", error: error.message });
+    }
+};
+
 // ฟังก์ชันดึงรายชื่อเพื่อนทั้งหมด
 exports.getFriendsList = async (req, res) => {
     try {
