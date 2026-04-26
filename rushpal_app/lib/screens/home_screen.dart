@@ -373,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                   allMembers[i],
                                   i,
                                   xPositions[i],
-                                  100,
+                                  112,
                                 ),
                               );
                             }
@@ -382,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                 allMembers[0],
                                 0,
                                 xPositions[0],
-                                80.0,
+                                97.0,
                               ),
                             );
                           } else {
@@ -391,11 +391,11 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                               double side = (i % 2 != 0) ? -1.0 : 1.0;
                               double xPos = depth * 100.0 * side;
                               characterStack.add(
-                                buildCharacter(allMembers[i], i, xPos, 100),
+                                buildCharacter(allMembers[i], i, xPos, 112),
                               );
                             }
                             characterStack.add(
-                              buildCharacter(allMembers[0], 0, 0.0, 80.0),
+                              buildCharacter(allMembers[0], 0, 0.0, 97.0),
                             );
                           }
 
@@ -534,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
               _buildBadge(
                 "$userPoints G",
                 Icons.monetization_on_rounded,
-                AppTheme.primaryRed,
+                Colors.amber,
               ),
             ],
           ),
@@ -556,12 +556,6 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                 ],
               ),
               const SizedBox(height: 15),
-              _buildBadge(
-                "Streak 5",
-                Icons.local_fire_department_rounded,
-                Colors.orange,
-              ),
-              const SizedBox(height: 8),
               GestureDetector(
                 onTap: () async {
                   final dynamic returnedCode = await Navigator.push(
@@ -576,10 +570,41 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                     _loadPartyMembers();
                   }
                 },
-                child: _buildBadge(
-                  "Party",
-                  Icons.celebration_rounded,
-                  AppTheme.primaryPink,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.textLight.withOpacity(0.1),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.celebration_rounded,
+                        color: AppTheme.primaryPink,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "Party",
+                        style: TextStyle(
+                          color: AppTheme.textLight,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
