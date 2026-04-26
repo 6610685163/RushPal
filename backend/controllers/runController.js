@@ -31,10 +31,10 @@ exports.saveRunResult = async (req, res) => {
             currentExp += earnedExp;
 
             let totalLevelUpBonus = 0; // 💡 ตัวแปรเก็บเงินโบนัสรวมกรณีอัปหลายเวลพร้อมกัน
-            
+
             // สูตรเทส: เวล 1-2 ใช้ 50 เมตร (50 EXP), เวล 2-3 ใช้ 100 เมตร (100 EXP)
-            let expNeeded = currentLevel * 50; 
-            
+            let expNeeded = currentLevel * 50;
+
             while (currentExp >= expNeeded) {
                 currentExp -= expNeeded; // หัก EXP ที่ใช้เลื่อนขั้นออก
                 currentLevel++; // เลเวลอัป!
@@ -56,13 +56,13 @@ exports.saveRunResult = async (req, res) => {
                 points: currentPoints + earnedGold + totalLevelUpBonus
             });
 
-            res.status(201).json({ 
-                message: "บันทึกข้อมูลและอัปเดตเลเวลสำเร็จ!", 
-                reward: { 
-                    goldFromRunning: earnedGold, 
+            res.status(201).json({
+                message: "บันทึกข้อมูลและอัปเดตเลเวลสำเร็จ!",
+                reward: {
+                    goldFromRunning: earnedGold,
                     goldFromLevelUp: totalLevelUpBonus, // แจ้งยอดโบนัสกลับไปด้วย
-                    exp: earnedExp, 
-                    newLevel: currentLevel 
+                    exp: earnedExp,
+                    newLevel: currentLevel
                 }
             });
         } else {
@@ -98,7 +98,7 @@ exports.getUserStats = async (req, res) => {
         // 💡 อัปเดตเพิ่ม 'pace' เข้าไปในคำสั่ง select ด้วย
         const { data, error } = await supabase
             .from('runs')
-            .select('distance, duration_seconds, calories, pace') 
+            .select('distance, duration_seconds, calories, pace, created_at')
             .eq('user_id', user_id)
             .gte('created_at', startDate.toISOString());
 
@@ -106,6 +106,15 @@ exports.getUserStats = async (req, res) => {
 
         let totalDistance = 0, totalTime = 0, totalCalories = 0;
         let bestPace = null; // 💡 ตัวแปรสำหรับเก็บเพซที่ดีที่สุด (น้อยที่สุด)
+
+        let chartData = [];
+        if (time_frame === 'weekly') {
+            chartData = [0, 0, 0, 0, 0, 0, 0]; // 7 วัน (Mon-Sun)
+        } else if (time_frame === 'monthly') {
+            chartData = new Array(31).fill(0); // 31 วันสำหรับรายเดือน
+        } else if (time_frame === 'daily') {
+            chartData = new Array(24).fill(0); // 24 ชั่วโมงสำหรับรายวัน
+        }
 
         data.forEach(run => {
             totalDistance += (run.distance || 0);
@@ -118,14 +127,34 @@ exports.getUserStats = async (req, res) => {
                     bestPace = run.pace;
                 }
             }
+
+            if (run.created_at) {
+                const runDate = new Date(run.created_at);
+
+                if (time_frame === 'weekly') {
+                    const dayIndex = runDate.getDay(); // 0(Sun) - 6(Sat)
+                    const chartIndex = dayIndex === 0 ? 6 : dayIndex - 1; // สลับให้ 0=Mon, 6=Sun
+                    chartData[chartIndex] += (run.distance || 0);
+                }
+                else if (time_frame === 'monthly') {
+                    const dateIndex = runDate.getDate() - 1; // วันที่ 1 ให้อยู่ช่องที่ 0
+                    chartData[dateIndex] += (run.distance || 0);
+                }
+                else if (time_frame === 'daily') {
+                    const hourIndex = runDate.getHours(); // 0-23 นาฬิกา
+                    chartData[hourIndex] += (run.distance || 0);
+                }
+            }
         });
+
 
         res.status(200).json({
             time_frame,
             total_distance: parseFloat(totalDistance.toFixed(2)),
             total_time_seconds: totalTime,
             total_calories: totalCalories,
-            best_pace: bestPace // 💡 ส่งค่าเพซที่ดีที่สุดกลับไปให้ Flutter
+            best_pace: bestPace, // 💡 ส่งค่าเพซที่ดีที่สุดกลับไปให้ Flutter
+            chart_data: chartData // 💡 ส่งข้อมูลสำหรับกราฟกลับไปด้วย
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
