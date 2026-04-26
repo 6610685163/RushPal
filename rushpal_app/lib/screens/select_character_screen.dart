@@ -56,7 +56,7 @@ class SelectCharacterScreen extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            char.gender == 'Male'
+                            char.gender == ''
                                 ? Icons.boy_rounded
                                 : Icons.girl_rounded,
                             size: 100,

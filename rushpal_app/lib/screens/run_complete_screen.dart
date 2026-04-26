@@ -4,7 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/database_service.dart'; // เพิ่มการเรียกใช้ DatabaseService
+import '../services/database_service.dart';
 
 class RunCompleteScreen extends StatelessWidget {
   final Duration duration;

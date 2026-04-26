@@ -140,7 +140,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
     });
   }
 
-  // 🌟 เปลี่ยนให้เป็น Future<void> และ async เพราะเราต้องรอยิง API
+  // เปลี่ยนให้เป็น Future<void> และ async เพราะเราต้องรอยิง API
   Future<void> _finishRun() async {
     _stopwatch.stop();
     _timer?.cancel();
@@ -169,7 +169,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // 🌟 2. ยิงข้อมูลสถิติเข้า Supabase (เก็บตาราง runs)
+        // 2. ยิงข้อมูลสถิติเข้า Supabase (เก็บตาราง runs)
         await Supabase.instance.client.from('runs').insert({
           'user_id': user.uid,
           'distance': finalDistance,
@@ -180,7 +180,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
               .partyCode, // ถ้าวิ่งเดี่ยว ค่านี้จะเป็น null ไปเองตามธรรมชาติ
         });
 
-        // 🌟 3. แยกลอจิก: ถ้าเป็นการวิ่งแบบ Party
+        // 3. แยกลอจิก: ถ้าเป็นการวิ่งแบบ Party
         if (widget.partyCode != null) {
           // อัปเดต Firestore บอกเพื่อนในห้องว่า "ฉันวิ่งเสร็จแล้วนะ!"
           await FirebaseFirestore.instance
@@ -205,7 +205,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
       }
     } catch (e) {
       print('Error saving run data: $e');
-      // 🌟 เพิ่ม SnackBar ให้มันโชว์ Error บนหน้าจอ
+      // เพิ่ม SnackBar ให้มันโชว์ Error บนหน้าจอ
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -219,7 +219,7 @@ class _StartRunScreenState extends State<StartRunScreen> {
     if (mounted) {
       Navigator.pop(context); // ปิด Loading
 
-      // 🌟 4. แยกลอจิก: ถ้าเป็นการวิ่งเดี่ยว (Solo) หรือเกิด Error ให้มาหน้า Result ปกติ
+      // 4. แยกลอจิก: ถ้าเป็นการวิ่งเดี่ยว (Solo) หรือเกิด Error ให้มาหน้า Result ปกติ
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

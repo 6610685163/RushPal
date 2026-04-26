@@ -116,7 +116,7 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
             const SizedBox(height: 40),
 
-            // 🌟 กราฟเส้น (Line Chart) พร้อมรายละเอียด
+            // กราฟเส้น (Line Chart) พร้อมรายละเอียด
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -151,7 +151,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                   : 1,
                               getDrawingHorizontalLine: (value) => const FlLine(
                                 color: Colors
-                                    .black12, // 🌟 เปลี่ยนเส้นประพื้นหลังเป็นสีเข้ม
+                                    .black12, // เปลี่ยนเส้นประพื้นหลังเป็นสีเข้ม
                                 strokeWidth: 1,
                                 dashArray: [5, 5],
                               ),
@@ -175,7 +175,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                       value.toStringAsFixed(1),
                                       style: const TextStyle(
                                         color: AppTheme
-                                            .pureBlack, // 🌟 เปลี่ยนสีตัวอักษรเป็นสีดำ
+                                            .pureBlack, // เปลี่ยนสีตัวอักษรเป็นสีดำ
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -226,7 +226,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                         label,
                                         style: const TextStyle(
                                           color: AppTheme
-                                              .pureBlack, // 🌟 เปลี่ยนสีตัวอักษรเป็นสีดำ
+                                              .pureBlack, // เปลี่ยนสีตัวอักษรเป็นสีดำ
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                         ),
