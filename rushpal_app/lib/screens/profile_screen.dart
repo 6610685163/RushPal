@@ -134,6 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: Stack(
                 alignment: Alignment.bottomCenter,
+                clipBehavior: Clip.none,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(4),
@@ -151,7 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: UserAvatar(imageUrl: profileImageUrl, radius: 50),
                   ),
                   Positioned(
-                    bottom: -5,
+                    bottom: -14,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -175,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 24),
 
             // Name
             Text(
@@ -246,102 +247,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-            const SizedBox(height: 30),
-
-            // Stats Grid
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _isLoadingStats
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppTheme.primaryPink,
-                      ),
-                    )
-                  : GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      childAspectRatio: 1.3,
-                      mainAxisSpacing: 15,
-                      crossAxisSpacing: 15,
-                      children: [
-                        _buildStatCard(
-                          "Total Distance",
-                          "${totalDistance.toStringAsFixed(1)} km",
-                          Icons.directions_run,
-                          Colors.blue,
-                        ),
-                        _buildStatCard(
-                          "Best Pace",
-                          bestPace,
-                          Icons.timer,
-                          Colors.orange,
-                        ),
-                        _buildStatCard(
-                          "Total Time",
-                          "${totalTimeHrs.toStringAsFixed(1)} hrs",
-                          Icons.access_time,
-                          Colors.purple,
-                        ),
-                        _buildStatCard(
-                          "Calories",
-                          "$totalCalories cal",
-                          Icons.local_fire_department,
-                          AppTheme.primaryRed,
-                        ),
-                      ],
-                    ),
-            ),
-
-            const SizedBox(height: 30),
-
-            // Trophies Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "TROPHIES",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.pureBlack,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          "See all",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Trophy List
-                  SizedBox(
-                    height: 110,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _buildTrophyItem("First Run", Colors.amber),
-                        _buildTrophyItem("5K Runner", Colors.grey),
-                        _buildTrophyItem("10K Runner", Colors.brown),
-                        _buildTrophyItem("Streak", Colors.blue),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 40),
           ],
         ),

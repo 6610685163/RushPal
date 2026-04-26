@@ -475,7 +475,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           src: displaySkin.modelPath,
                           controller: _controller,
                           autoPlay: true,
-                          cameraControls: false,
+                          cameraControls: true,
                           backgroundColor: Colors.transparent,
                           exposure: 1.0,
                           animationName:

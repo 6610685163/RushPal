@@ -385,11 +385,19 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                 97.0,
                               ),
                             );
+                          } else if (allMembers.length == 2) {
+                            // 2 คน: เรียงซ้าย-ขวาชิดกัน
+                            characterStack.add(
+                              buildCharacter(allMembers[1], 1, -55.0, 112),
+                            );
+                            characterStack.add(
+                              buildCharacter(allMembers[0], 0, 55.0, 97.0),
+                            );
                           } else {
                             for (int i = allMembers.length - 1; i >= 1; i--) {
                               int depth = (i + 1) ~/ 2;
                               double side = (i % 2 != 0) ? -1.0 : 1.0;
-                              double xPos = depth * 100.0 * side;
+                              double xPos = depth * 85.0 * side;
                               characterStack.add(
                                 buildCharacter(allMembers[i], i, xPos, 112),
                               );
@@ -442,7 +450,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                   width: 210,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -576,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -620,7 +628,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.85),
+          color: Colors.white.withOpacity(0.9),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
@@ -639,7 +647,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
       width: 100,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.85),
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(color: AppTheme.textLight.withOpacity(0.1), blurRadius: 10),
