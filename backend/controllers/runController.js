@@ -1,22 +1,21 @@
 const supabase = require('../config/supabase');
-const admin = require('firebase-admin'); // เรียกใช้ firebase-admin
+const admin = require('firebase-admin');
 
 exports.saveRunResult = async (req, res) => {
     try {
-        const { user_id, distance, pace, duration_seconds, calories } = req.body;
+        // 💡 1. เพิ่มการรับค่า partycode เข้ามา
+        const { user_id, distance, pace, duration_seconds, calories, partycode } = req.body;
 
-        // 1. บันทึกประวัติการวิ่งลง Supabase (เหมือนเดิม)
+        // 💡 2. บันทึกประวัติการวิ่งลง Supabase พร้อม partycode
         const { data, error } = await supabase
             .from('runs')
-            .insert([{ user_id, distance, pace, duration_seconds, calories }]);
+            .insert([{ user_id, distance, pace, duration_seconds, calories, partycode }]);
 
         if (error) throw error;
 
-        // 2. ระบบคำนวณเงินและ EXP (รับ distance มาเป็น กิโลเมตร)
-        const earnedGold = Math.floor(distance * 100); // 1 km = 10 G
-        const earnedExp = Math.floor(distance * 1000); // 1 km = 1000 EXP
+        const earnedGold = Math.floor(distance * 100); 
+        const earnedExp = Math.floor(distance * 1000); 
 
-        // 3. ไปดึงข้อมูลผู้เล่นคนนี้จาก Firebase มาเช็ค
         const db = admin.firestore();
         const userRef = db.collection('users').doc(user_id);
         const userDoc = await userRef.get();
@@ -27,29 +26,19 @@ exports.saveRunResult = async (req, res) => {
             let currentExp = userData.exp || 0;
             let currentPoints = userData.points || 0;
 
-            // เอา EXP จากการวิ่งรอบนี้ไปบวกเพิ่ม
             currentExp += earnedExp;
 
-            let totalLevelUpBonus = 0; // 💡 ตัวแปรเก็บเงินโบนัสรวมกรณีอัปหลายเวลพร้อมกัน
-
-            // สูตรเทส: เวล 1-2 ใช้ 50 เมตร (50 EXP), เวล 2-3 ใช้ 100 เมตร (100 EXP)
+            let totalLevelUpBonus = 0; 
             let expNeeded = currentLevel * 50;
 
             while (currentExp >= expNeeded) {
-                currentExp -= expNeeded; // หัก EXP ที่ใช้เลื่อนขั้นออก
-                currentLevel++; // เลเวลอัป!
-
-                // 💡 คำนวณเงินรางวัลเวลอัปตามสูตรที่คุณให้มา
-                // เวล 2 ได้ 100, เวล 3 ได้ 120, เวล 4 ได้ 140
-                // สูตรคือ: 100 + ((เลเวลใหม่ - 2) * 20)
+                currentExp -= expNeeded; 
+                currentLevel++; 
                 let levelReward = 100 + (currentLevel - 2) * 20;
                 totalLevelUpBonus += levelReward;
-
-                expNeeded = currentLevel * 50; // ตั้งเป้าหมายสำหรับเลเวลถัดไป
+                expNeeded = currentLevel * 50; 
             }
 
-            // 5. อัปเดตข้อมูลใหม่กลับลง Firebase
-            // 💡 นำ (เงินจากการวิ่ง + เงินโบนัสเวลอัป) ไปบวกเพิ่มใน points เดิม
             await userRef.update({
                 level: currentLevel,
                 exp: currentExp,
@@ -60,7 +49,7 @@ exports.saveRunResult = async (req, res) => {
                 message: "บันทึกข้อมูลและอัปเดตเลเวลสำเร็จ!",
                 reward: {
                     goldFromRunning: earnedGold,
-                    goldFromLevelUp: totalLevelUpBonus, // แจ้งยอดโบนัสกลับไปด้วย
+                    goldFromLevelUp: totalLevelUpBonus,
                     exp: earnedExp,
                     newLevel: currentLevel
                 }
@@ -74,7 +63,7 @@ exports.saveRunResult = async (req, res) => {
     }
 };
 
-// ... (ส่วนของ getUserStats เอาไว้เหมือนเดิมไม่ต้องลบนะครับ) ...
+// ... (ส่วนของ getUserStats เอาไว้เหมือนเดิมเป๊ะๆ ครับ) ...
 exports.getUserStats = async (req, res) => {
     try {
         const { user_id } = req.params;
@@ -92,10 +81,9 @@ exports.getUserStats = async (req, res) => {
             startDate.setDate(1);
             startDate.setHours(0, 0, 0, 0);
         } else {
-            startDate = new Date(0); // ถ้าส่ง 'all' มา จะดึงข้อมูลตั้งแต่เริ่มต้น
+            startDate = new Date(0); 
         }
 
-        // 💡 อัปเดตเพิ่ม 'pace' เข้าไปในคำสั่ง select ด้วย
         const { data, error } = await supabase
             .from('runs')
             .select('distance, duration_seconds, calories, pace, created_at')
@@ -105,15 +93,15 @@ exports.getUserStats = async (req, res) => {
         if (error) throw error;
 
         let totalDistance = 0, totalTime = 0, totalCalories = 0;
-        let bestPace = null; // 💡 ตัวแปรสำหรับเก็บเพซที่ดีที่สุด (น้อยที่สุด)
+        let bestPace = null; 
 
         let chartData = [];
         if (time_frame === 'weekly') {
-            chartData = [0, 0, 0, 0, 0, 0, 0]; // 7 วัน (Mon-Sun)
+            chartData = [0, 0, 0, 0, 0, 0, 0]; 
         } else if (time_frame === 'monthly') {
-            chartData = new Array(31).fill(0); // 31 วันสำหรับรายเดือน
+            chartData = new Array(31).fill(0); 
         } else if (time_frame === 'daily') {
-            chartData = new Array(24).fill(0); // 24 ชั่วโมงสำหรับรายวัน
+            chartData = new Array(24).fill(0); 
         }
 
         data.forEach(run => {
@@ -121,7 +109,6 @@ exports.getUserStats = async (req, res) => {
             totalTime += (run.duration_seconds || 0);
             totalCalories += (run.calories || 0);
 
-            // 💡 ตรวจหา Best Pace (ตัวเลขยิ่งน้อยยิ่งแปลว่าวิ่งเร็ว)
             if (run.pace && run.pace > 0) {
                 if (bestPace === null || run.pace < bestPace) {
                     bestPace = run.pace;
@@ -132,29 +119,163 @@ exports.getUserStats = async (req, res) => {
                 const runDate = new Date(run.created_at);
 
                 if (time_frame === 'weekly') {
-                    const dayIndex = runDate.getDay(); // 0(Sun) - 6(Sat)
-                    const chartIndex = dayIndex === 0 ? 6 : dayIndex - 1; // สลับให้ 0=Mon, 6=Sun
+                    const dayIndex = runDate.getDay(); 
+                    const chartIndex = dayIndex === 0 ? 6 : dayIndex - 1; 
                     chartData[chartIndex] += (run.distance || 0);
                 }
                 else if (time_frame === 'monthly') {
-                    const dateIndex = runDate.getDate() - 1; // วันที่ 1 ให้อยู่ช่องที่ 0
+                    const dateIndex = runDate.getDate() - 1; 
                     chartData[dateIndex] += (run.distance || 0);
                 }
                 else if (time_frame === 'daily') {
-                    const hourIndex = runDate.getHours(); // 0-23 นาฬิกา
+                    const hourIndex = runDate.getHours(); 
                     chartData[hourIndex] += (run.distance || 0);
                 }
             }
         });
-
 
         res.status(200).json({
             time_frame,
             total_distance: parseFloat(totalDistance.toFixed(2)),
             total_time_seconds: totalTime,
             total_calories: totalCalories,
-            best_pace: bestPace, // 💡 ส่งค่าเพซที่ดีที่สุดกลับไปให้ Flutter
-            chart_data: chartData // 💡 ส่งข้อมูลสำหรับกราฟกลับไปด้วย
+            best_pace: bestPace,
+            chart_data: chartData 
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// ==========================================
+// 💡 ฟังก์ชันใหม่สำหรับระบบ Daily Quest
+// ==========================================
+
+// 1. ดึงสถานะเควสของวันนี้ (ตัดยอดเที่ยงคืน)
+exports.getQuestStatus = async (req, res) => {
+    try {
+        const { user_id } = req.params;
+        const { partycode } = req.query;
+
+        // หาวันที่ของวันนี้ (เริ่มตอนเที่ยงคืน 00:00:00)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dateString = today.toISOString().split('T')[0]; // เช่น "2026-04-26"
+
+        // 1. คำนวณระยะทางวิ่งส่วนตัว (ของวันนี้)
+        const { data: personalData } = await supabase
+            .from('runs')
+            .select('distance')
+            .eq('user_id', user_id)
+            .gte('created_at', today.toISOString());
+
+        let personalDistance = 0;
+        if (personalData) {
+            personalDistance = personalData.reduce((sum, run) => sum + (run.distance || 0), 0);
+        }
+
+        // 2. คำนวณระยะทางวิ่งปาร์ตี้ (ของวันนี้)
+        let partyDistance = 0;
+        if (partycode && partycode !== 'null' && partycode.trim() !== '') {
+            const { data: partyData } = await supabase
+                .from('runs')
+                .select('distance')
+                .eq('partycode', partycode)
+                .gte('created_at', today.toISOString());
+            
+            if (partyData) {
+                partyDistance = partyData.reduce((sum, run) => sum + (run.distance || 0), 0);
+            }
+        }
+
+        // 3. เช็คสถานะการรับรางวัลใน Firestore
+        const db = admin.firestore();
+        const userDoc = await db.collection('users').doc(user_id).get();
+        
+        let isPersonalClaimed = false;
+        let isPartyClaimed = false;
+
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            // ถ้าวันที่รับรางวัลล่าสุด ตรงกับวันที่ของวันนี้ แปลว่ารับไปแล้ว
+            isPersonalClaimed = userData.lastPersonalQuestClaim === dateString;
+            isPartyClaimed = userData.lastPartyQuestClaim === dateString;
+        }
+
+        res.status(200).json({
+            personalDistance: parseFloat(personalDistance.toFixed(2)),
+            partyDistance: parseFloat(partyDistance.toFixed(2)),
+            isPersonalClaimed,
+            isPartyClaimed
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 2. กดรับรางวัลเควส (20G / 100EXP)
+exports.claimQuest = async (req, res) => {
+    try {
+        const { user_id, quest_type } = req.body; 
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dateString = today.toISOString().split('T')[0];
+
+        const db = admin.firestore();
+        const userRef = db.collection('users').doc(user_id);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists) return res.status(404).json({ message: "ไม่พบข้อมูลผู้ใช้" });
+
+        let userData = userDoc.data();
+        
+        // ป้องกันการกดย้ำ (เช็คซ้ำอีกรอบก่อนแจกของ)
+        if (quest_type === 'personal' && userData.lastPersonalQuestClaim === dateString) {
+            return res.status(400).json({ message: "คุณรับรางวัลนี้ไปแล้ว" });
+        }
+        if (quest_type === 'party' && userData.lastPartyQuestClaim === dateString) {
+            return res.status(400).json({ message: "คุณรับรางวัลนี้ไปแล้ว" });
+        }
+
+        let currentLevel = userData.level || 1;
+        let currentExp = userData.exp || 0;
+        let currentPoints = userData.points || 0;
+
+        // 💡 แจกรางวัลเควส: 20 G และ 100 EXP
+        currentExp += 100; 
+        currentPoints += 20; 
+
+        // ตรวจสอบการอัปเลเวล (ใช้สูตรเดิม)
+        let totalLevelUpBonus = 0;
+        let expNeeded = currentLevel * 50; 
+        while (currentExp >= expNeeded) {
+            currentExp -= expNeeded;
+            currentLevel++;
+            totalLevelUpBonus += (100 + (currentLevel - 2) * 20);
+            expNeeded = currentLevel * 50;
+        }
+
+        currentPoints += totalLevelUpBonus;
+
+        // เตรียมข้อมูลอัปเดต
+        const updates = { 
+            level: currentLevel, 
+            exp: currentExp, 
+            points: currentPoints 
+        };
+        
+        // ประทับตราวานที่รับรางวัล
+        if (quest_type === 'personal') updates.lastPersonalQuestClaim = dateString;
+        else if (quest_type === 'party') updates.lastPartyQuestClaim = dateString;
+
+        await userRef.update(updates);
+
+        res.status(200).json({ 
+            message: "รับรางวัลสำเร็จ!", 
+            rewardG: 20 + totalLevelUpBonus, 
+            rewardExp: 100,
+            newLevel: currentLevel
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
