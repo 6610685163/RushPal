@@ -190,13 +190,30 @@ class _StartRunScreenState extends State<StartRunScreen> {
 
           if (mounted) {
             Navigator.pop(context); // ปิด Loading
+
             // วาร์ปไปหน้า Party Result (หน้ารวมพลคนวิ่งตี้)
+            /* คอมเมนต์โค้ดเดิมเอาไว้เผื่อดูเปรียบเทียบ
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 // ไว้เรามาสร้างไฟล์นี้ด้วยกันสเต็ปต่อไปครับ
                 builder: (context) =>
                     PartyResultScreen(partyCode: widget.partyCode!),
+              ),
+            );
+            */
+
+            // โค้ดใหม่ที่อัปเดตให้ส่งค่าสถิติการวิ่งไปหน้า PartyResultScreen ด้วย
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PartyResultScreen(
+                  partyCode: widget.partyCode!,
+                  duration: _stopwatch.elapsed,
+                  distance: finalDistance,
+                  calories: calories,
+                  routeSegments: routeSegments,
+                ),
               ),
             );
           }

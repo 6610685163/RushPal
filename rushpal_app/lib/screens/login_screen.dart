@@ -163,6 +163,24 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // เพิ่มรูปภาพ app_logo.jpg ไว้บนสุดของหน้า
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    20,
+                  ), // เพิ่มความโค้งมนให้รูปดูสวยขึ้น
+                  child: Image.asset(
+                    'assets/images/app_logo.png',
+                    height: 120, // ปรับขนาดความสูงตามความเหมาะสม
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.image_not_supported,
+                      size: 100,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 Text(
                   "RushPal",
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(

@@ -42,6 +42,29 @@ class DatabaseService {
     }
   }
 
+  Future<List<Map<String, dynamic>>?> fetchRunHistory() async {
+    try {
+      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        final url = '$_baseUrl/history/$userId';
+        final response = await http.get(Uri.parse(url));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data is List) {
+            return List<Map<String, dynamic>>.from(data);
+          } else if (data is Map && data['runs'] != null) {
+            return List<Map<String, dynamic>>.from(data['runs']);
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      print("❌ Error fetching run history: $error");
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>?> fetchUserStats(String timeFrame) async {
     try {
       final String? userId = FirebaseAuth.instance.currentUser?.uid;

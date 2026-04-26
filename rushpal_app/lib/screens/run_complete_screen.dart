@@ -364,6 +364,9 @@ class RunCompleteScreen extends StatelessWidget {
                           ),
                         );
 
+                        // คอมเมนต์ส่วนนี้ทิ้งเพื่อป้องกันการบันทึกข้อมูลซ้ำ
+                        // เนื่องจากมีการบันทึกลง Supabase ไปเรียบร้อยแล้วในหน้า start_run_screen
+                        /*
                         double calculatedPace = distance > 0
                             ? (duration.inSeconds / 60) / distance
                             : 0.0;
@@ -375,6 +378,7 @@ class RunCompleteScreen extends StatelessWidget {
                           seconds: duration.inSeconds,
                           calories: calories,
                         );
+                        */
 
                         if (partyCode != null) {
                           await FirebaseFirestore.instance

@@ -54,9 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           });
 
       if (mounted) {
-        Navigator.pop(
-          context,
-        ); // กลับไปหน้า Login
+        Navigator.pop(context); // กลับไปหน้า Login
       }
     } on FirebaseAuthException catch (e) {
       String errorMsg = "เกิดข้อผิดพลาด กรุณาลองใหม่";
@@ -125,7 +123,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on FirebaseAuthException catch (e) {
       _showSnackBar("เกิดข้อผิดพลาดจากระบบ: ${e.message}");
     } catch (e) {
-      print("🚨 GOOGLE ERROR: $e");
+      print("GOOGLE ERROR: $e");
       _showSnackBar("เข้าสู่ระบบด้วย Google ล้มเหลว");
     } finally {
       if (mounted) setState(() => _isGoogleLoading = false);
@@ -165,7 +163,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 10),
+              // เพิ่มรูปภาพ app_logo.jpg ไว้บนสุดของหน้าและจัดกึ่งกลาง
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/images/app_logo.png',
+                    height:
+                        100, // ปรับให้เล็กกว่าหน้า Login นิดหน่อยเพื่อความเหมาะสม
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.image_not_supported,
+                      size: 100,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
               Text(
                 "Join\nRushPal",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
