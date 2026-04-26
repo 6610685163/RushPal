@@ -1,13 +1,9 @@
-// controllers/shopController.js
 const { db, admin } = require('../config/firebase');
 
-// Function to buy an item
+// ฟังก์ชันซื้อไอเทม
 const buyItem = async (req, res) => {
   const { uid, itemId } = req.body;
-
-  if (!uid || !itemId) {
-    return res.status(400).json({ error: 'Missing uid or itemId' });
-  }
+  if (!uid || !itemId) return res.status(400).json({ error: 'Missing uid or itemId' });
 
   const userRef = db.collection('users').doc(uid);
   const itemRef = db.collection('shop_items').doc(itemId);
@@ -21,86 +17,91 @@ const buyItem = async (req, res) => {
       if (!itemDoc.exists) throw new Error('Item not found in the shop');
 
       const userData = userDoc.data();
-      const itemData = itemDoc.data();
-
       const inventory = userData.inventory || [];
-      if (inventory.includes(itemId)) {
-        throw new Error('You already own this item');
-      }
+      if (inventory.includes(itemId)) throw new Error('You already own this item');
 
       const currentPoints = userData.points || 0;
-      const itemPrice = itemData.price || 0;
-      
-      if (currentPoints < itemPrice) {
-        throw new Error('Insufficient points');
-      }
+      const itemPrice = itemDoc.data().price || 0;
+      if (currentPoints < itemPrice) throw new Error('Insufficient points');
 
       transaction.update(userRef, {
         points: currentPoints - itemPrice,
         inventory: admin.firestore.FieldValue.arrayUnion(itemId)
       });
     });
-
     res.status(200).json({ success: true, message: 'Purchase successful!' });
-
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
 };
 
-
-// Function to fetch market items and check ownership status
+// ฟังก์ชันโหลดข้อมูลร้านค้า
 const getMarketItems = async (req, res) => {
-  const { uid } = req.params; // Get user uid from URL parameter
-
-  if (!uid) {
-    return res.status(400).json({ error: 'uid is required' });
-  }
+  const { uid } = req.params;
+  if (!uid) return res.status(400).json({ error: 'uid is required' });
 
   try {
-    // 1. Fetch user data to check their inventory
     const userDoc = await db.collection('users').doc(uid).get();
-    const inventory = userDoc.exists ? (userDoc.data().inventory || []) : [];
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const inventory = userData.inventory || [];
 
-    // 2. Fetch all shop items from the database
     const shopSnapshot = await db.collection('shop_items').get();
     
-    // 3. Restructure data to match Flutter frontend requirements
-    const marketItems = {
-      'Head': [],
-      'Body': [],
-      'Legs': [],
-      'Shoes': []
-    };
+    // โครงสร้างหมวดหมู่ใหม่
+    const marketItems = { 'Skin': [], 'Idle': [], 'Ready': [] };
 
     shopSnapshot.forEach(doc => {
       const item = doc.data();
-      // Check if the user already owns this item
       const isOwned = inventory.includes(doc.id);
 
-      // Group items by category
       if (marketItems[item.category]) {
         marketItems[item.category].push({
           id: doc.id,
           name: item.name || '',
           price: item.price || 0,
           owned: isOwned,
-          model: item.model || 'assets/models/guy.glb',
-          image: item.image || ''
+          model: item.model || '',
+          animation_key: item.animation_key || '',
+          character_id: item.character_id || ''
         });
       }
     });
 
-    // Send data back to the app
     res.status(200).json({
       success: true,
-      points: userDoc.exists ? userDoc.data().points : 0, // Send user points to update the UI
+      points: userData.points || 0,
+      equipped_skin: userData.equipped_skin || '',
+      equipped_idle: userData.equipped_idle || 'idle', // ค่าเริ่มต้นคือท่าชื่อ idle
+      equipped_ready: userData.equipped_ready || 'ready', // ค่าเริ่มต้นคือท่าชื่อ ready
       marketItems: marketItems
     });
-
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-module.exports = { buyItem, getMarketItems };
+// สำหรับกด "สวมใส่" สกิน หรือ ท่าทาง
+const equipItem = async (req, res) => {
+  const { uid, category, itemKeyOrId } = req.body;
+  
+  if (!uid || !category || !itemKeyOrId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+      const userRef = db.collection('users').doc(uid);
+      let updateData = {};
+      
+      // เช็คว่ากำลังใส่หมวดไหน แล้วอัปเดตฟิลด์นั้น
+      if (category === 'Skin') updateData.equipped_skin = itemKeyOrId;
+      else if (category === 'idle') updateData.equipped_idle = itemKeyOrId;
+      else if (category === 'ready') updateData.equipped_ready = itemKeyOrId;
+
+      await userRef.update(updateData);
+      res.status(200).json({ success: true, message: 'Equipped successfully' });
+  } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+module.exports = { buyItem, getMarketItems, equipItem };

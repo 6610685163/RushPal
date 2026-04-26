@@ -74,4 +74,19 @@ class PlayerState {
   // ตัวแปร Global สำหรับเก็บค่าตัวละครและสกินที่กำลังใช้งาน
   static ValueNotifier<Character?> currentCharacter = ValueNotifier(null);
   static ValueNotifier<Skin?> currentSkin = ValueNotifier(null);
+  // สำหรับเก็บท่า Animation ที่ผู้ใช้กำลังใส่
+  static ValueNotifier<String> currentIdle = ValueNotifier('idle');
+  static ValueNotifier<String> currentReady = ValueNotifier('ready');
+}
+
+// ข้อมูลสมาชิก party รวม skin + animation
+class PartyMember {
+  final Skin skin;
+  final String idleId;
+  final String readyId;
+  PartyMember({
+    required this.skin,
+    this.idleId = 'idle',
+    this.readyId = 'ready',
+  });
 }
