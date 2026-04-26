@@ -4,6 +4,8 @@ import 'package:rushpal/screens/market_screen.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/stats_screen.dart';
 import 'package:rushpal/screens/friend_screen.dart';
+import 'package:rushpal/services/friend_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,24 +15,52 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  final List<Widget> _pages = [
+  int _pendingRequestCount = 0;
+
+  // สร้าง pages ครั้งเดียวตอนประกาศ ไม่ต้องรอ initState
+  late final List<Widget> _pages = [
     const HomeScreen(),
     const MarketScreen(),
     const StatsScreen(),
-    const FriendScreen(),
+    FriendScreen(
+      onRequestsChanged: (count) {
+        if (mounted) {
+          setState(() {
+            _pendingRequestCount = count;
+          });
+        }
+      },
+    ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingCount();
+  }
+
+  Future<void> _loadPendingCount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final requests = await FriendService.getPendingRequests(user.uid);
+      if (mounted) {
+        setState(() {
+          _pendingRequestCount = requests.length;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
       backgroundColor: AppTheme.backgroundCream,
-      body: _pages[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: SafeArea(child: _buildCapybaraNavbar()),
     );
   }
 
-  // วาด Navbar สไตล์ Capybara Go
   Widget _buildCapybaraNavbar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -38,31 +68,33 @@ class _MainScreenState extends State<MainScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(40),
-        // 1. เส้นขอบหนาสีน้ำตาลเข้มสไตล์การ์ตูน
         border: Border.all(color: AppTheme.pureBlack, width: 3),
-        // 2. เงาทึบ (Hard Shadow) ไม่มีความเบลอ
         boxShadow: [
           BoxShadow(
             color: AppTheme.pureBlack.withOpacity(0.15),
-            blurRadius: 0, // ปรับเป็น 0 เพื่อให้เงาคมชัดแบบเกม 2D
-            offset: const Offset(0, 6), // ดันเงาลงมาด้านล่าง
+            blurRadius: 0,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(Icons.home_rounded, 0, 'Home'),
-          _buildNavItem(Icons.storefront_rounded, 1, 'Shop'),
-          _buildNavItem(Icons.bar_chart_rounded, 2, 'Stats'),
-          _buildNavItem(Icons.groups_rounded, 3, 'Friends'),
+          _buildNavItem(Icons.home_rounded, 0, 'Home', 0),
+          _buildNavItem(Icons.storefront_rounded, 1, 'Shop', 0),
+          _buildNavItem(Icons.bar_chart_rounded, 2, 'Stats', 0),
+          _buildNavItem(
+            Icons.groups_rounded,
+            3,
+            'Friends',
+            _pendingRequestCount,
+          ),
         ],
       ),
     );
   }
 
-  // วาดปุ่มด้านใน Navbar
-  Widget _buildNavItem(IconData icon, int index, String label) {
+  Widget _buildNavItem(IconData icon, int index, String label, int badgeCount) {
     bool isSelected = _selectedIndex == index;
 
     return GestureDetector(
@@ -70,19 +102,20 @@ class _MainScreenState extends State<MainScreen> {
         setState(() {
           _selectedIndex = index;
         });
+        if (index == 3) {
+          _loadPendingCount();
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutBack, // ให้มีจังหวะเด้งดึ๋งเล็กน้อย
+        curve: Curves.easeOutBack,
         padding: EdgeInsets.symmetric(
           horizontal: isSelected ? 20 : 12,
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          // ถ้าถูกเลือก ให้พื้นหลังเป็นสีเหลือง
           color: isSelected ? AppTheme.primaryPink : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
-          // ถ้าถูกเลือก ให้มีเส้นขอบและเงาของตัวเองเด้งขึ้นมา
           border: isSelected
               ? Border.all(color: AppTheme.pureBlack, width: 2.5)
               : Border.all(color: Colors.transparent, width: 2.5),
@@ -91,7 +124,7 @@ class _MainScreenState extends State<MainScreen> {
                   const BoxShadow(
                     color: AppTheme.pureBlack,
                     blurRadius: 0,
-                    offset: Offset(0, 3), // เงาของปุ่มที่ถูกกด
+                    offset: Offset(0, 3),
                   ),
                 ]
               : null,
@@ -99,13 +132,44 @@ class _MainScreenState extends State<MainScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              // สีไอคอนเข้มขึ้นเมื่อถูกเลือก
-              color: isSelected
-                  ? AppTheme.pureBlack
-                  : AppTheme.textLight.withOpacity(0.5),
-              size: 28,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected
+                      ? AppTheme.pureBlack
+                      : AppTheme.textLight.withOpacity(0.5),
+                  size: 28,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -6,
+                    right: -8,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          height: 1,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             if (isSelected) ...[
               const SizedBox(width: 6),
@@ -113,8 +177,7 @@ class _MainScreenState extends State<MainScreen> {
                 label,
                 style: const TextStyle(
                   color: AppTheme.pureBlack,
-                  fontWeight:
-                      FontWeight.w900,
+                  fontWeight: FontWeight.w900,
                   fontSize: 15,
                 ),
               ),

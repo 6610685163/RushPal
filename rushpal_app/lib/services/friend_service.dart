@@ -71,7 +71,35 @@ class FriendService {
     }
   }
 
-  // 3. ดึงรายชื่อคนขอแอดมา
+  // 3. ปฏิเสธคำขอ
+  static Future<bool> declineRequest(String myUid, String friendUid) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/request/decline'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'myUid': myUid, 'friendUid': friendUid}),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // 5. ลบเพื่อน
+  static Future<bool> removeFriend(String myUid, String friendUid) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/remove'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'myUid': myUid, 'friendUid': friendUid}),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // 4. ดึงรายชื่อคนขอแอดมา
   static Future<List<dynamic>> getPendingRequests(String uid) async {
     try {
       final res = await http.post(
