@@ -99,17 +99,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     (s) => s.id == data['skinId'],
                   );
 
-                  if (mounted) {
-                    setState(() {
-                      PlayerState.currentCharacter.value = foundChar;
-                      PlayerState.currentSkin.value = foundSkin;
-                      // โหลด animation ที่ใส่อยู่มาด้วย
-                      PlayerState.currentIdle.value =
-                          data['equipped_idle'] ?? 'idle';
-                      PlayerState.currentReady.value =
-                          data['equipped_ready'] ?? 'ready';
-                    });
+                  final newIdle = data['equipped_idle'] ?? 'idle';
+                  final newReady = data['equipped_ready'] ?? 'ready';
+
+                  // อัปเดต ValueNotifier นอก setState เพื่อให้ ValueListenableBuilder rebuild ถูกต้อง
+                  // เช็คก่อนเซ็ตเพื่อป้องกัน Firestore snapshot เก่า overwrite ค่าใหม่
+                  PlayerState.currentCharacter.value = foundChar;
+                  PlayerState.currentSkin.value = foundSkin;
+                  if (PlayerState.currentIdle.value != newIdle) {
+                    PlayerState.currentIdle.value = newIdle;
                   }
+                  if (PlayerState.currentReady.value != newReady) {
+                    PlayerState.currentReady.value = newReady;
+                  }
+
+                  if (mounted) setState(() {});
                 } catch (e) {
                   _navigateToSelectCharacter();
                 }
@@ -246,103 +250,120 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ValueListenableBuilder<String>(
                 valueListenable: PlayerState.currentIdle,
                 builder: (context, currentIdle, child) {
-                  return ValueListenableBuilder<Skin?>(
-                    valueListenable: PlayerState.currentSkin,
-                    builder: (context, currentSkin, child) {
-                      if (currentSkin == null) {
-                        return const SizedBox.shrink();
-                      }
+                  return ValueListenableBuilder<String>(
+                    valueListenable: PlayerState.currentReady,
+                    builder: (context, currentReady, child) {
+                      return ValueListenableBuilder<Skin?>(
+                        valueListenable: PlayerState.currentSkin,
+                        builder: (context, currentSkin, child) {
+                          if (currentSkin == null) {
+                            return const SizedBox.shrink();
+                          }
 
-                      // สร้าง PartyMember สำหรับตัวเราเองโดยดึง animation จาก PlayerState
-                      final myMember = PartyMember(
-                        skin: currentSkin,
-                        idleId: PlayerState.currentIdle.value,
-                        readyId: PlayerState.currentReady.value,
-                      );
-                      List<PartyMember> allMembers = [
-                        myMember,
-                        ...partyMembers,
-                      ];
-                      List<Widget> characterStack = [];
+                          // สร้าง PartyMember สำหรับตัวเราเองโดยดึง animation จาก builder
+                          final myMember = PartyMember(
+                            skin: currentSkin,
+                            idleId: currentIdle,
+                            readyId: currentReady,
+                          );
+                          List<PartyMember> allMembers = [
+                            myMember,
+                            ...partyMembers,
+                          ];
+                          List<Widget> characterStack = [];
 
-                      Widget buildCharacter(
-                        PartyMember member,
-                        int index,
-                        double xOffset,
-                        double shadowBottom,
-                      ) {
-                        return Transform.translate(
-                          offset: Offset(xOffset, 0),
-                          child: SizedBox(
-                            width: index == 0 ? 350 : 280,
-                            height: 550,
-                            child: Stack(
-                              alignment: Alignment.bottomCenter,
-                              children: [
-                                Positioned(
-                                  bottom: shadowBottom,
-                                  child: Container(
-                                    width: index == 0 ? 140 : 100,
-                                    height: 18,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.12),
-                                      borderRadius: const BorderRadius.all(
-                                        Radius.elliptical(80, 15),
+                          Widget buildCharacter(
+                            PartyMember member,
+                            int index,
+                            double xOffset,
+                            double shadowBottom,
+                          ) {
+                            return Transform.translate(
+                              offset: Offset(xOffset, 0),
+                              child: SizedBox(
+                                width: index == 0 ? 350 : 280,
+                                height: 550,
+                                child: Stack(
+                                  alignment: Alignment.bottomCenter,
+                                  children: [
+                                    Positioned(
+                                      bottom: shadowBottom,
+                                      child: Container(
+                                        width: index == 0 ? 140 : 100,
+                                        height: 18,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.12),
+                                          borderRadius: const BorderRadius.all(
+                                            Radius.elliptical(80, 15),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                    O3D(
+                                      key: ValueKey(
+                                        "home_char_${member.skin.id}_${member.idleId}_$index",
+                                      ),
+                                      controller: index == 0
+                                          ? _controller
+                                          : null,
+                                      src: member.skin.modelPath,
+                                      autoPlay: true,
+                                      autoRotate: false,
+                                      cameraControls: false,
+                                      backgroundColor: Colors.transparent,
+                                      exposure: 0.9,
+                                      animationName: member.idleId,
+                                    ),
+                                  ],
                                 ),
-                                O3D(
-                                  key: ValueKey(
-                                    "home_char_${member.skin.id}_${member.idleId}_$index",
-                                  ),
-                                  controller: index == 0 ? _controller : null,
-                                  src: member.skin.modelPath,
-                                  autoPlay: true,
-                                  autoRotate: false,
-                                  cameraControls: false,
-                                  backgroundColor: Colors.transparent,
-                                  exposure: 0.9,
-                                  animationName: member.idleId,
+                              ),
+                            );
+                          }
+
+                          if (allMembers.length == 4) {
+                            List<double> xPositions = [
+                              45.0,
+                              -45.0,
+                              -140.0,
+                              140.0,
+                            ];
+                            for (int i = 3; i >= 1; i--) {
+                              characterStack.add(
+                                buildCharacter(
+                                  allMembers[i],
+                                  i,
+                                  xPositions[i],
+                                  100,
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
+                              );
+                            }
+                            characterStack.add(
+                              buildCharacter(
+                                allMembers[0],
+                                0,
+                                xPositions[0],
+                                80.0,
+                              ),
+                            );
+                          } else {
+                            for (int i = allMembers.length - 1; i >= 1; i--) {
+                              int depth = (i + 1) ~/ 2;
+                              double side = (i % 2 != 0) ? -1.0 : 1.0;
+                              double xPos = depth * 100.0 * side;
+                              characterStack.add(
+                                buildCharacter(allMembers[i], i, xPos, 100),
+                              );
+                            }
+                            characterStack.add(
+                              buildCharacter(allMembers[0], 0, 0.0, 80.0),
+                            );
+                          }
 
-                      if (allMembers.length == 4) {
-                        List<double> xPositions = [45.0, -45.0, -140.0, 140.0];
-                        for (int i = 3; i >= 1; i--) {
-                          characterStack.add(
-                            buildCharacter(
-                              allMembers[i],
-                              i,
-                              xPositions[i],
-                              100,
-                            ),
+                          return Stack(
+                            alignment: Alignment.bottomCenter,
+                            children: characterStack,
                           );
-                        }
-                        characterStack.add(
-                          buildCharacter(allMembers[0], 0, xPositions[0], 80.0),
-                        );
-                      } else {
-                        for (int i = allMembers.length - 1; i >= 1; i--) {
-                          int depth = (i + 1) ~/ 2;
-                          double side = (i % 2 != 0) ? -1.0 : 1.0;
-                          double xPos = depth * 100.0 * side;
-                          characterStack.add(
-                            buildCharacter(allMembers[i], i, xPos, 100),
-                          );
-                        }
-                        characterStack.add(
-                          buildCharacter(allMembers[0], 0, 0.0, 80.0),
-                        );
-                      }
-
-                      return Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: characterStack,
+                        },
                       );
                     },
                   );

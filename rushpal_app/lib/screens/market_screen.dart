@@ -54,16 +54,21 @@ class _MarketScreenState extends State<MarketScreen> {
           .listen((snapshot) {
             if (snapshot.exists && snapshot.data() != null) {
               final data = snapshot.data()!;
+              final newIdle = data['equipped_idle'] ?? 'idle';
+              final newReady = data['equipped_ready'] ?? 'ready';
+
+              // อัปเดต ValueNotifier นอก setState เพื่อให้ ValueListenableBuilder rebuild ถูกต้อง
+              if (PlayerState.currentIdle.value != newIdle) {
+                PlayerState.currentIdle.value = newIdle;
+              }
+              if (PlayerState.currentReady.value != newReady) {
+                PlayerState.currentReady.value = newReady;
+              }
+
               if (mounted) {
                 setState(() {
                   userPoints = data['points'] ?? 0;
                   inventory = List<String>.from(data['inventory'] ?? []);
-
-                  // ดึงสถานะท่าทางปัจจุบันที่ใส่อยู่มาอัปเดตใน PlayerState
-                  PlayerState.currentIdle.value =
-                      data['equipped_idle'] ?? 'idle';
-                  PlayerState.currentReady.value =
-                      data['equipped_ready'] ?? 'ready';
                 });
               }
             }
@@ -74,13 +79,13 @@ class _MarketScreenState extends State<MarketScreen> {
   // ฟังก์ชันโหลดข้อมูลท่าทางจากคอลเลกชัน shop_items ในหมวดหมู่ Idle และ Ready
   Future<void> _fetchShopAnimations() async {
     try {
-      debugPrint("🚀 กำลังดึงข้อมูลจากคอลเลกชัน shop_items...");
+      debugPrint(" กำลังดึงข้อมูลจากคอลเลกชัน shop_items...");
 
       // ดึงข้อมูลทั้งหมดมาก่อน เพื่อแก้ปัญหาพิมพ์เล็ก/ใหญ่ หรือมีช่องว่างซ่อนอยู่
       final snapshot = await FirebaseFirestore.instance
           .collection('shop_items')
           .get();
-      debugPrint("📦 เจอสินค้าในร้านทั้งหมด: ${snapshot.docs.length} ชิ้น");
+      debugPrint(" เจอสินค้าในร้านทั้งหมด: ${snapshot.docs.length} ชิ้น");
 
       // คัดกรองเฉพาะหมวดหมู่ idle และ ready ในฝั่งแอป
       final filteredDocs = snapshot.docs.where((doc) {
@@ -89,7 +94,7 @@ class _MarketScreenState extends State<MarketScreen> {
         // ดึง category มาแปลงเป็นพิมพ์เล็กทั้งหมด และตัดช่องว่าง (space) ทิ้ง
         final cat = data['category']?.toString().trim().toLowerCase() ?? '';
 
-        debugPrint("🔍 ตรวจสอบไอเทม: ${data['name']} | หมวดหมู่ในระบบ: '$cat'");
+        debugPrint(" ตรวจสอบไอเทม: ${data['name']} | หมวดหมู่ในระบบ: '$cat'");
 
         return cat == 'idle' ||
             cat == 'ready' ||
@@ -102,11 +107,11 @@ class _MarketScreenState extends State<MarketScreen> {
           shopAnimations = filteredDocs;
         });
         debugPrint(
-          "✅ โหลดท่าทางสำเร็จ พร้อมแสดงผล: ${shopAnimations.length} ท่า",
+          " โหลดท่าทางสำเร็จ พร้อมแสดงผล: ${shopAnimations.length} ท่า",
         );
       }
     } catch (e) {
-      debugPrint("❌ เกิดข้อผิดพลาดในการโหลดท่าทาง: $e");
+      debugPrint(" เกิดข้อผิดพลาดในการโหลดท่าทาง: $e");
     }
   }
 
@@ -152,6 +157,7 @@ class _MarketScreenState extends State<MarketScreen> {
       fieldToUpdate: animKey,
     });
 
+    // อัปเดต ValueNotifier โดยตรง (ไม่ใส่ใน setState) เพื่อให้ทุก ValueListenableBuilder รับรู้ทันที
     if (category.toLowerCase() == 'idle') {
       PlayerState.currentIdle.value = animKey;
     } else {
@@ -165,8 +171,10 @@ class _MarketScreenState extends State<MarketScreen> {
       readyKey: PlayerState.currentReady.value,
     );
 
-    // เปลี่ยน animation ผ่านการ rebuild widget ด้วย ValueKey ใหม่
-    _playAnimation(animKey);
+    // อัปเดต previewAnimation เพื่อให้โมเดล 3D เปลี่ยนท่าใน market หน้านี้ด้วย
+    setState(() {
+      previewAnimation = animKey;
+    });
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -614,6 +622,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         ),
 
                         // Tab 2: รายการท่าทาง (Idle และ Ready)
+                        // ใช้ ValueListenableBuilder เพื่อให้ isEquipped อัปเดตทันทีหลัง equip
                         shopAnimations.isEmpty
                             ? const Center(
                                 child: Column(
@@ -635,189 +644,169 @@ class _MarketScreenState extends State<MarketScreen> {
                                   ],
                                 ),
                               )
-                            : ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                physics: const ClampingScrollPhysics(),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                ),
-                                itemCount: shopAnimations.length,
-                                itemBuilder: (context, index) {
-                                  final animDoc = shopAnimations[index];
-                                  final data =
-                                      animDoc.data() as Map<String, dynamic>;
-
-                                  final animId = animDoc.id;
-                                  final animName = data['name'] ?? 'Unknown';
-                                  final price = data['price'] ?? 0;
-                                  // แก้ไขเช็กพิมพ์เล็ก
-                                  final category = data['category'] ?? 'idle';
-                                  final animKey =
-                                      data['animation_key'] ?? 'idle';
-
-                                  bool isOwned =
-                                      inventory.contains(animId) || price == 0;
-                                  bool isEquipped =
-                                      (category.toLowerCase() == 'idle' &&
-                                          PlayerState.currentIdle.value ==
-                                              animKey) ||
-                                      (category.toLowerCase() == 'ready' &&
-                                          PlayerState.currentReady.value ==
-                                              animKey);
-                                  bool isPreviewing =
-                                      previewAnimation == animKey &&
-                                      !isEquipped;
-
-                                  final catColor =
-                                      category.toLowerCase() == 'idle'
-                                      ? Colors.deepPurple
-                                      : Colors.deepOrange;
-
-                                  return GestureDetector(
-                                    onTap: () {
-                                      if (isOwned) {
-                                        _equipAnimation(category, animKey);
-                                      } else {
-                                        _playAnimation(animKey);
-                                        _showBuyConfirmation(
-                                          animId,
-                                          animName,
-                                          price,
-                                        );
-                                      }
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 200,
-                                      ),
-                                      width: 100,
-                                      margin: const EdgeInsets.only(
-                                        right: 12,
-                                        bottom: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isEquipped
-                                            ? AppTheme.primaryPink.withOpacity(
-                                                0.05,
-                                              )
-                                            : isPreviewing
-                                            ? catColor.withOpacity(0.05)
-                                            : Colors.grey.shade50,
-                                        borderRadius: BorderRadius.circular(22),
-                                        border: Border.all(
-                                          color: isEquipped
-                                              ? AppTheme.primaryPink
-                                              : isPreviewing
-                                              ? catColor
-                                              : Colors.grey.shade200,
-                                          width: isEquipped || isPreviewing
-                                              ? 2
-                                              : 1.5,
+                            : ValueListenableBuilder<String>(
+                                valueListenable: PlayerState.currentIdle,
+                                builder: (context, currentIdle, _) {
+                                  return ValueListenableBuilder<String>(
+                                    valueListenable: PlayerState.currentReady,
+                                    builder: (context, currentReady, _) {
+                                      return ListView.builder(
+                                        scrollDirection: Axis.horizontal,
+                                        physics: const ClampingScrollPhysics(),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
                                         ),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            isOwned
-                                                ? Icons
-                                                      .accessibility_new_rounded
-                                                : Icons.lock_rounded,
-                                            size: 28,
-                                            color: isEquipped
-                                                ? AppTheme.primaryPink
-                                                : isOwned
-                                                ? catColor
-                                                : Colors.grey.shade300,
-                                          ),
-                                          const SizedBox(height: 5),
-                                          Text(
-                                            animName,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: isEquipped
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                              color: isEquipped
-                                                  ? AppTheme.primaryPink
-                                                  : AppTheme.textLight,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 7,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: catColor.withOpacity(0.12),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              category.toUpperCase(),
-                                              style: TextStyle(
-                                                fontSize: 8,
-                                                fontWeight: FontWeight.bold,
-                                                color: catColor,
+                                        itemCount: shopAnimations.length,
+                                        itemBuilder: (context, index) {
+                                          final animDoc = shopAnimations[index];
+                                          final data =
+                                              animDoc.data()
+                                                  as Map<String, dynamic>;
+
+                                          final animId = animDoc.id;
+                                          final animName =
+                                              data['name'] ?? 'Unknown';
+                                          final price = data['price'] ?? 0;
+                                          final category =
+                                              data['category'] ?? 'idle';
+                                          final animKey =
+                                              data['animation_key'] ?? 'idle';
+
+                                          bool isOwned =
+                                              inventory.contains(animId) ||
+                                              price == 0;
+                                          // อ่านจาก ValueListenableBuilder แทน .value โดยตรง
+                                          bool isEquipped =
+                                              (category.toLowerCase() ==
+                                                      'idle' &&
+                                                  currentIdle == animKey) ||
+                                              (category.toLowerCase() ==
+                                                      'ready' &&
+                                                  currentReady == animKey);
+
+                                          return GestureDetector(
+                                            onTap: () {
+                                              if (isOwned) {
+                                                _equipAnimation(
+                                                  category,
+                                                  animKey,
+                                                );
+                                              } else {
+                                                _showBuyConfirmation(
+                                                  animId,
+                                                  animName,
+                                                  price,
+                                                );
+                                              }
+                                            },
+                                            child: AnimatedContainer(
+                                              duration: const Duration(
+                                                milliseconds: 200,
                                               ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          if (isEquipped)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2,
-                                                  ),
+                                              width: 100,
+                                              margin: const EdgeInsets.only(
+                                                right: 12,
+                                                bottom: 5,
+                                              ),
                                               decoration: BoxDecoration(
-                                                color: AppTheme.primaryPink,
+                                                color: isEquipped
+                                                    ? AppTheme.primaryPink
+                                                          .withOpacity(0.05)
+                                                    : Colors.grey.shade50,
                                                 borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: const Text(
-                                                'ACTIVE',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
+                                                    BorderRadius.circular(22),
+                                                border: Border.all(
+                                                  color: isEquipped
+                                                      ? AppTheme.primaryPink
+                                                      : Colors.grey.shade200,
+                                                  width: isEquipped ? 2 : 1.5,
                                                 ),
                                               ),
-                                            )
-                                          else if (isPreviewing)
-                                            Text(
-                                              'PREVIEW',
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                                color: catColor,
-                                              ),
-                                            )
-                                          else if (isOwned)
-                                            Text(
-                                              'Tap to equip',
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                color: Colors.grey.shade400,
-                                              ),
-                                            )
-                                          else
-                                            Text(
-                                              '$price G',
-                                              style: const TextStyle(
-                                                color: Colors.amber,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    isOwned
+                                                        ? Icons
+                                                              .accessibility_new_rounded
+                                                        : Icons.lock_rounded,
+                                                    size: 28,
+                                                    color: isEquipped
+                                                        ? AppTheme.primaryPink
+                                                        : isOwned
+                                                        ? Colors.grey.shade400
+                                                        : Colors.grey.shade300,
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    animName,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: isEquipped
+                                                          ? FontWeight.bold
+                                                          : FontWeight.normal,
+                                                      color: isEquipped
+                                                          ? AppTheme.primaryPink
+                                                          : AppTheme.textLight,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  if (isEquipped)
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            top: 4,
+                                                          ),
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 2,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: AppTheme
+                                                            .primaryPink,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              10,
+                                                            ),
+                                                      ),
+                                                      child: const Text(
+                                                        'ACTIVE',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 8,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  else if (!isOwned)
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            top: 4,
+                                                          ),
+                                                      child: Text(
+                                                        '$price G',
+                                                        style: const TextStyle(
+                                                          color: Colors.amber,
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
                                               ),
                                             ),
-                                        ],
-                                      ),
-                                    ),
+                                          );
+                                        },
+                                      );
+                                    },
                                   );
                                 },
                               ),
