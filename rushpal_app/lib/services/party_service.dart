@@ -221,4 +221,29 @@ class PartyService {
       print("ℹ️ เปลี่ยนสกินตอนไม่ได้อยู่ในปาร์ตี้ หรือ Error: $e");
     }
   }
+
+  // --- 10. อัปเดต animation ให้เพื่อนในปาร์ตี้เห็นแบบ Real-time ---
+  static Future<void> syncAnimationToParty({
+    required String uid,
+    required String idleKey,
+    required String readyKey,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final partyCode = prefs.getString('partyCode');
+
+      if (partyCode != null && partyCode.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('parties')
+            .doc(partyCode)
+            .update({
+              'members.$uid.idleId': idleKey,
+              'members.$uid.readyId': readyKey,
+            });
+        print("✅ ซิงค์ animation เข้าปาร์ตี้สำเร็จ!");
+      }
+    } catch (e) {
+      print("ℹ️ ซิงค์ animation: ไม่ได้อยู่ในปาร์ตี้ หรือ Error: $e");
+    }
+  }
 }

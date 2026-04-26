@@ -94,8 +94,8 @@ const equipItem = async (req, res) => {
       
       // เช็คว่ากำลังใส่หมวดไหน แล้วอัปเดตฟิลด์นั้น
       if (category === 'Skin') updateData.equipped_skin = itemKeyOrId;
-      else if (category === 'Idle') updateData.equipped_idle = itemKeyOrId;
-      else if (category === 'Ready') updateData.equipped_ready = itemKeyOrId;
+      else if (category === 'idle') updateData.equipped_idle = itemKeyOrId;
+      else if (category === 'ready') updateData.equipped_ready = itemKeyOrId;
 
       await userRef.update(updateData);
       res.status(200).json({ success: true, message: 'Equipped successfully' });

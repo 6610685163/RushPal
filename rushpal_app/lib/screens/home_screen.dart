@@ -14,6 +14,7 @@ import 'profile_screen.dart';
 import 'start_run_screen.dart';
 import 'party_screen.dart';
 import 'package:rushpal/widgets/user_avatar.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -33,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   String? currentPartyCode;
-  List<Skin> partyMembersSkins = [];
+  List<PartyMember> partyMembers = [];
   StreamSubscription<DocumentSnapshot>? _partySubscription;
 
   @override
@@ -102,6 +103,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     setState(() {
                       PlayerState.currentCharacter.value = foundChar;
                       PlayerState.currentSkin.value = foundSkin;
+                      // โหลด animation ที่ใส่อยู่มาด้วย
+                      PlayerState.currentIdle.value =
+                          data['equipped_idle'] ?? 'idle';
+                      PlayerState.currentReady.value =
+                          data['equipped_ready'] ?? 'ready';
                     });
                   }
                 } catch (e) {
@@ -124,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _partySubscription?.cancel();
 
     if (currentPartyCode == null) {
-      if (mounted) setState(() => partyMembersSkins = []);
+      if (mounted) setState(() => partyMembers = []);
       return;
     }
 
@@ -139,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 partyData['members'] as Map<String, dynamic>? ?? {};
 
             final myUid = FirebaseAuth.instance.currentUser?.uid;
-            List<Skin> loadedSkins = [];
+            List<PartyMember> loaded = [];
             bool isMeStillInParty = false;
 
             membersMap.forEach((uid, memberData) {
@@ -150,12 +156,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
               try {
                 String skinId = memberData['skinId'] ?? "skin_m_1";
+                String idleId = memberData['idleId'] ?? 'idle';
+                String readyId = memberData['readyId'] ?? 'ready';
                 bool found = false;
 
                 for (var char in myCharacters) {
                   for (var skin in char.skins) {
                     if (skin.id == skinId) {
-                      loadedSkins.add(skin);
+                      loaded.add(
+                        PartyMember(
+                          skin: skin,
+                          idleId: idleId,
+                          readyId: readyId,
+                        ),
+                      );
                       found = true;
                       break;
                     }
@@ -171,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (mounted) {
                 setState(() {
                   currentPartyCode = null;
-                  partyMembersSkins = [];
+                  partyMembers = [];
                 });
               }
               SharedPreferences.getInstance().then(
@@ -182,14 +196,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
             if (mounted) {
               setState(() {
-                partyMembersSkins = loadedSkins;
+                partyMembers = loaded;
               });
             }
           } else {
             if (mounted) {
               setState(() {
                 currentPartyCode = null;
-                partyMembersSkins = [];
+                partyMembers = [];
               });
             }
             SharedPreferences.getInstance().then(
@@ -229,87 +243,108 @@ class _HomeScreenState extends State<HomeScreen> {
               left: 0,
               right: 0,
               height: 550,
-              child: ValueListenableBuilder<Skin?>(
-                valueListenable: PlayerState.currentSkin,
-                builder: (context, currentSkin, child) {
-                  if (currentSkin == null) {
-                    return const SizedBox.shrink();
-                  }
+              child: ValueListenableBuilder<String>(
+                valueListenable: PlayerState.currentIdle,
+                builder: (context, currentIdle, child) {
+                  return ValueListenableBuilder<Skin?>(
+                    valueListenable: PlayerState.currentSkin,
+                    builder: (context, currentSkin, child) {
+                      if (currentSkin == null) {
+                        return const SizedBox.shrink();
+                      }
 
-                  List<Skin> allSkins = [currentSkin, ...partyMembersSkins];
-                  List<Widget> characterStack = [];
+                      // สร้าง PartyMember สำหรับตัวเราเองโดยดึง animation จาก PlayerState
+                      final myMember = PartyMember(
+                        skin: currentSkin,
+                        idleId: PlayerState.currentIdle.value,
+                        readyId: PlayerState.currentReady.value,
+                      );
+                      List<PartyMember> allMembers = [
+                        myMember,
+                        ...partyMembers,
+                      ];
+                      List<Widget> characterStack = [];
 
-                  Widget buildCharacter(
-                    Skin skin,
-                    int index,
-                    double xOffset,
-                    double shadowBottom,
-                  ) {
-                    return Transform.translate(
-                      offset: Offset(xOffset, 0),
-                      child: SizedBox(
-                        width: index == 0 ? 350 : 280,
-                        height: 550,
-                        child: Stack(
-                          alignment: Alignment.bottomCenter,
-                          children: [
-                            Positioned(
-                              bottom: shadowBottom,
-                              child: Container(
-                                width: index == 0 ? 140 : 100,
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.12),
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.elliptical(80, 15),
+                      Widget buildCharacter(
+                        PartyMember member,
+                        int index,
+                        double xOffset,
+                        double shadowBottom,
+                      ) {
+                        return Transform.translate(
+                          offset: Offset(xOffset, 0),
+                          child: SizedBox(
+                            width: index == 0 ? 350 : 280,
+                            height: 550,
+                            child: Stack(
+                              alignment: Alignment.bottomCenter,
+                              children: [
+                                Positioned(
+                                  bottom: shadowBottom,
+                                  child: Container(
+                                    width: index == 0 ? 140 : 100,
+                                    height: 18,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.12),
+                                      borderRadius: const BorderRadius.all(
+                                        Radius.elliptical(80, 15),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                O3D(
+                                  key: ValueKey(
+                                    "home_char_${member.skin.id}_${member.idleId}_$index",
+                                  ),
+                                  controller: index == 0 ? _controller : null,
+                                  src: member.skin.modelPath,
+                                  autoPlay: true,
+                                  autoRotate: false,
+                                  cameraControls: false,
+                                  backgroundColor: Colors.transparent,
+                                  exposure: 0.9,
+                                  animationName: member.idleId,
+                                ),
+                              ],
                             ),
-                            O3D(
-                              key: ValueKey("home_char_${skin.id}_$index"),
-                              controller: index == 0 ? _controller : null,
-                              src: skin.modelPath,
-                              autoPlay: true,
-                              autoRotate: false,
-                              cameraControls: false,
-                              backgroundColor: Colors.transparent,
-                              exposure: 0.9,
-                              animationName: 'Idle',
+                          ),
+                        );
+                      }
+
+                      if (allMembers.length == 4) {
+                        List<double> xPositions = [45.0, -45.0, -140.0, 140.0];
+                        for (int i = 3; i >= 1; i--) {
+                          characterStack.add(
+                            buildCharacter(
+                              allMembers[i],
+                              i,
+                              xPositions[i],
+                              100,
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
+                          );
+                        }
+                        characterStack.add(
+                          buildCharacter(allMembers[0], 0, xPositions[0], 80.0),
+                        );
+                      } else {
+                        for (int i = allMembers.length - 1; i >= 1; i--) {
+                          int depth = (i + 1) ~/ 2;
+                          double side = (i % 2 != 0) ? -1.0 : 1.0;
+                          double xPos = depth * 100.0 * side;
+                          characterStack.add(
+                            buildCharacter(allMembers[i], i, xPos, 100),
+                          );
+                        }
+                        characterStack.add(
+                          buildCharacter(allMembers[0], 0, 0.0, 80.0),
+                        );
+                      }
 
-                  if (allSkins.length == 4) {
-                    List<double> xPositions = [45.0, -45.0, -140.0, 140.0];
-                    for (int i = 3; i >= 1; i--) {
-                      characterStack.add(
-                        buildCharacter(allSkins[i], i, xPositions[i], 100),
+                      return Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: characterStack,
                       );
-                    }
-                    characterStack.add(
-                      buildCharacter(allSkins[0], 0, xPositions[0], 80.0),
-                    );
-                  } else {
-                    for (int i = allSkins.length - 1; i >= 1; i--) {
-                      int depth = (i + 1) ~/ 2;
-                      double side = (i % 2 != 0) ? -1.0 : 1.0;
-                      double xPos = depth * 100.0 * side;
-                      characterStack.add(
-                        buildCharacter(allSkins[i], i, xPos, 100),
-                      );
-                    }
-                    characterStack.add(
-                      buildCharacter(allSkins[0], 0, 0.0, 80.0),
-                    );
-                  }
-
-                  return Stack(
-                    alignment: Alignment.bottomCenter,
-                    children: characterStack,
+                    },
                   );
                 },
               ),

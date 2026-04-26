@@ -75,28 +75,35 @@ class _MarketScreenState extends State<MarketScreen> {
   Future<void> _fetchShopAnimations() async {
     try {
       debugPrint("🚀 กำลังดึงข้อมูลจากคอลเลกชัน shop_items...");
-      
+
       // ดึงข้อมูลทั้งหมดมาก่อน เพื่อแก้ปัญหาพิมพ์เล็ก/ใหญ่ หรือมีช่องว่างซ่อนอยู่
-      final snapshot = await FirebaseFirestore.instance.collection('shop_items').get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('shop_items')
+          .get();
       debugPrint("📦 เจอสินค้าในร้านทั้งหมด: ${snapshot.docs.length} ชิ้น");
 
       // คัดกรองเฉพาะหมวดหมู่ idle และ ready ในฝั่งแอป
       final filteredDocs = snapshot.docs.where((doc) {
         final data = doc.data() as Map<String, dynamic>;
-        
+
         // ดึง category มาแปลงเป็นพิมพ์เล็กทั้งหมด และตัดช่องว่าง (space) ทิ้ง
         final cat = data['category']?.toString().trim().toLowerCase() ?? '';
-        
+
         debugPrint("🔍 ตรวจสอบไอเทม: ${data['name']} | หมวดหมู่ในระบบ: '$cat'");
-        
-        return cat == 'idle' || cat == 'ready';
+
+        return cat == 'idle' ||
+            cat == 'ready' ||
+            cat == 'Idle' ||
+            cat == 'Ready';
       }).toList();
 
       if (mounted) {
         setState(() {
           shopAnimations = filteredDocs;
         });
-        debugPrint("✅ โหลดท่าทางสำเร็จ พร้อมแสดงผล: ${shopAnimations.length} ท่า");
+        debugPrint(
+          "✅ โหลดท่าทางสำเร็จ พร้อมแสดงผล: ${shopAnimations.length} ท่า",
+        );
       }
     } catch (e) {
       debugPrint("❌ เกิดข้อผิดพลาดในการโหลดท่าทาง: $e");
@@ -137,8 +144,7 @@ class _MarketScreenState extends State<MarketScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    // แก้ไขเช็ก category เป็นพิมพ์เล็ก
-    String fieldToUpdate = category == 'idle'
+    String fieldToUpdate = category.toLowerCase() == 'idle'
         ? 'equipped_idle'
         : 'equipped_ready';
 
@@ -146,16 +152,21 @@ class _MarketScreenState extends State<MarketScreen> {
       fieldToUpdate: animKey,
     });
 
-    if (category == 'idle') {
+    if (category.toLowerCase() == 'idle') {
       PlayerState.currentIdle.value = animKey;
     } else {
       PlayerState.currentReady.value = animKey;
     }
 
-    // อัปเดตตัวแปรพรีวิวเพื่อให้โมเดลเล่นท่าทางนี้ทันที
-    setState(() {
-      previewAnimation = animKey;
-    });
+    // ซิงค์ animation ให้เพื่อนในปาร์ตี้เห็นด้วย
+    await PartyService.syncAnimationToParty(
+      uid: uid,
+      idleKey: PlayerState.currentIdle.value,
+      readyKey: PlayerState.currentReady.value,
+    );
+
+    // เปลี่ยน animation ผ่านการ rebuild widget ด้วย ValueKey ใหม่
+    _playAnimation(animKey);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -167,6 +178,13 @@ class _MarketScreenState extends State<MarketScreen> {
         ),
       );
     }
+  }
+
+  // เล่น animation ผ่านการ rebuild widget ด้วย ValueKey ใหม่
+  void _playAnimation(String animKey) {
+    setState(() {
+      previewAnimation = animKey;
+    });
   }
 
   // ฟังก์ชันซื้อไอเทม (ปรับให้รองรับทั้ง Skin และ Animation)
@@ -408,7 +426,9 @@ class _MarketScreenState extends State<MarketScreen> {
                           return const CircularProgressIndicator();
                         return O3D(
                           key: ValueKey(
-                            currentSkin.modelPath + selectedCharacter!.id,
+                            currentSkin.modelPath +
+                                selectedCharacter!.id +
+                                (previewAnimation ?? ''),
                           ),
                           src: currentSkin.modelPath,
                           controller: _controller,
@@ -428,24 +448,24 @@ class _MarketScreenState extends State<MarketScreen> {
           ),
 
           // 3. โซนเลือกสกินและท่าทาง (Bottom) ปรับปรุงให้มี Tab
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(top: 10, bottom: bottomPadding),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(35),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 15,
-                  offset: const Offset(0, -5),
+          DefaultTabController(
+            length: 2,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.only(top: 10, bottom: bottomPadding),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(35),
                 ),
-              ],
-            ),
-            child: DefaultTabController(
-              length: 2,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 15,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,12 +482,13 @@ class _MarketScreenState extends State<MarketScreen> {
                   ),
                   const SizedBox(height: 15),
                   SizedBox(
-                    height: 110,
+                    height: 140,
                     child: TabBarView(
                       children: [
                         // Tab 1: รายการสกิน (เหมือนของเดิม)
                         ListView.builder(
                           scrollDirection: Axis.horizontal,
+                          physics: const ClampingScrollPhysics(),
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: selectedCharacter?.skins.length ?? 0,
                           itemBuilder: (context, index) {
@@ -593,140 +614,213 @@ class _MarketScreenState extends State<MarketScreen> {
                         ),
 
                         // Tab 2: รายการท่าทาง (Idle และ Ready)
-                        ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: shopAnimations.length,
-                          itemBuilder: (context, index) {
-                            final animDoc = shopAnimations[index];
-                            final data = animDoc.data() as Map<String, dynamic>;
-
-                            final animId = animDoc.id;
-                            final animName = data['name'] ?? 'Unknown';
-                            final price = data['price'] ?? 0;
-                            // แก้ไขเช็กพิมพ์เล็ก
-                            final category = data['category'] ?? 'idle';
-                            final animKey = data['animation_key'] ?? 'idle';
-
-                            bool isOwned =
-                                inventory.contains(animId) || price == 0;
-                            // แก้ไขเช็กพิมพ์เล็กให้ตรงกับ Category ใหม่
-                            bool isEquipped =
-                                (category == 'idle' &&
-                                    PlayerState.currentIdle.value == animKey) ||
-                                (category == 'ready' &&
-                                    PlayerState.currentReady.value == animKey);
-
-                            return GestureDetector(
-                              onTap: () {
-                                if (isOwned) {
-                                  _equipAnimation(category, animKey);
-                                } else {
-                                  _showBuyConfirmation(animId, animName, price);
-                                  // กดดูพรีวิวท่าทางก่อนซื้อได้ผ่าน setState
-                                  setState(() {
-                                    previewAnimation = animKey;
-                                  });
-                                }
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                width: 100,
-                                margin: const EdgeInsets.only(
-                                  right: 12,
-                                  bottom: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isEquipped
-                                      ? Colors.blue.withOpacity(0.05)
-                                      : Colors.grey.shade50,
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: isEquipped
-                                        ? Colors.blue
-                                        : Colors.grey.shade200,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Stack(
-                                  alignment: Alignment.center,
+                        shopAnimations.isEmpty
+                            ? const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          isOwned
-                                              ? Icons.directions_run_rounded
-                                              : Icons.lock_rounded,
-                                          size: 28,
-                                          color: isEquipped
-                                              ? Colors.blue
-                                              : (isOwned
-                                                    ? Colors.grey.shade400
-                                                    : Colors.grey.shade300),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          animName,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: isEquipped
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                            color: isEquipped
-                                                ? Colors.blue
-                                                : AppTheme.textLight,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-
-                                        // แสดงสถานะ Active หรือ ราคา
-                                        if (isEquipped)
-                                          Container(
-                                            margin: const EdgeInsets.only(
-                                              top: 4,
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue,
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: const Text(
-                                              "ACTIVE",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 8,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          )
-                                        else if (!isOwned)
-                                          Container(
-                                            margin: const EdgeInsets.only(
-                                              top: 4,
-                                            ),
-                                            child: Text(
-                                              "$price G",
-                                              style: const TextStyle(
-                                                color: Colors.amber,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
+                                    Icon(
+                                      Icons.directions_run_rounded,
+                                      size: 36,
+                                      color: Colors.grey,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'No animations available',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ],
                                 ),
+                              )
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                physics: const ClampingScrollPhysics(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                itemCount: shopAnimations.length,
+                                itemBuilder: (context, index) {
+                                  final animDoc = shopAnimations[index];
+                                  final data =
+                                      animDoc.data() as Map<String, dynamic>;
+
+                                  final animId = animDoc.id;
+                                  final animName = data['name'] ?? 'Unknown';
+                                  final price = data['price'] ?? 0;
+                                  // แก้ไขเช็กพิมพ์เล็ก
+                                  final category = data['category'] ?? 'idle';
+                                  final animKey =
+                                      data['animation_key'] ?? 'idle';
+
+                                  bool isOwned =
+                                      inventory.contains(animId) || price == 0;
+                                  bool isEquipped =
+                                      (category.toLowerCase() == 'idle' &&
+                                          PlayerState.currentIdle.value ==
+                                              animKey) ||
+                                      (category.toLowerCase() == 'ready' &&
+                                          PlayerState.currentReady.value ==
+                                              animKey);
+                                  bool isPreviewing =
+                                      previewAnimation == animKey &&
+                                      !isEquipped;
+
+                                  final catColor =
+                                      category.toLowerCase() == 'idle'
+                                      ? Colors.deepPurple
+                                      : Colors.deepOrange;
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      if (isOwned) {
+                                        _equipAnimation(category, animKey);
+                                      } else {
+                                        _playAnimation(animKey);
+                                        _showBuyConfirmation(
+                                          animId,
+                                          animName,
+                                          price,
+                                        );
+                                      }
+                                    },
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      width: 100,
+                                      margin: const EdgeInsets.only(
+                                        right: 12,
+                                        bottom: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isEquipped
+                                            ? AppTheme.primaryPink.withOpacity(
+                                                0.05,
+                                              )
+                                            : isPreviewing
+                                            ? catColor.withOpacity(0.05)
+                                            : Colors.grey.shade50,
+                                        borderRadius: BorderRadius.circular(22),
+                                        border: Border.all(
+                                          color: isEquipped
+                                              ? AppTheme.primaryPink
+                                              : isPreviewing
+                                              ? catColor
+                                              : Colors.grey.shade200,
+                                          width: isEquipped || isPreviewing
+                                              ? 2
+                                              : 1.5,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            isOwned
+                                                ? Icons
+                                                      .accessibility_new_rounded
+                                                : Icons.lock_rounded,
+                                            size: 28,
+                                            color: isEquipped
+                                                ? AppTheme.primaryPink
+                                                : isOwned
+                                                ? catColor
+                                                : Colors.grey.shade300,
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            animName,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: isEquipped
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                              color: isEquipped
+                                                  ? AppTheme.primaryPink
+                                                  : AppTheme.textLight,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: catColor.withOpacity(0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              category.toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.bold,
+                                                color: catColor,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          if (isEquipped)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.primaryPink,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: const Text(
+                                                'ACTIVE',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            )
+                                          else if (isPreviewing)
+                                            Text(
+                                              'PREVIEW',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: catColor,
+                                              ),
+                                            )
+                                          else if (isOwned)
+                                            Text(
+                                              'Tap to equip',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.grey.shade400,
+                                              ),
+                                            )
+                                          else
+                                            Text(
+                                              '$price G',
+                                              style: const TextStyle(
+                                                color: Colors.amber,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
                       ],
                     ),
                   ),
