@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,7 +9,7 @@ import 'package:rushpal/theme/app_theme.dart';
 import 'run_complete_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'party_result_screen.dart';
 
 class StartRunScreen extends StatefulWidget {
@@ -169,16 +170,23 @@ class _StartRunScreenState extends State<StartRunScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // 2. ยิงข้อมูลสถิติเข้า Supabase (เก็บตาราง runs)
-        await Supabase.instance.client.from('runs').insert({
-          'user_id': user.uid,
-          'distance': finalDistance,
-          'pace': double.parse(paceDecimal.toStringAsFixed(2)),
-          'duration_seconds': totalSeconds,
-          'calories': calories,
-          'partycode': widget
-              .partyCode, // ถ้าวิ่งเดี่ยว ค่านี้จะเป็น null ไปเองตามธรรมชาติ
-        });
+        // 2. ยิงข้อมูลสถิติเข้า Backend API (ให้ backend คำนวณ exp/gold และบันทึก Supabase)
+        final response = await http.post(
+          Uri.parse('https://rushpal.onrender.com/api/runs'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': user.uid,
+            'distance': finalDistance,
+            'pace': double.parse(paceDecimal.toStringAsFixed(2)),
+            'duration_seconds': totalSeconds,
+            'calories': calories,
+            'partycode': widget.partyCode,
+          }),
+        );
+
+        if (response.statusCode != 201) {
+          throw Exception('Backend error: ${response.body}');
+        }
 
         // 3. แยกลอจิก: ถ้าเป็นการวิ่งแบบ Party
         if (widget.partyCode != null) {

@@ -33,6 +33,8 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
   final supabase = Supabase.instance.client;
 
   Future<List<dynamic>> _fetchPartyStats() async {
+    // รอ 1 วินาทีให้ backend บันทึกลง Supabase เสร็จก่อน
+    await Future.delayed(const Duration(seconds: 1));
     final response = await supabase
         .from('runs')
         .select()
@@ -482,9 +484,11 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                           ),
                         ),
 
-                      // รายชื่อและสถิติเพื่อนในตี้
+                      // รายชื่อและสถิติเพื่อนในตี้ (ดึงใหม่ทุกครั้งที่ Firestore เปลี่ยน)
                       FutureBuilder<List<dynamic>>(
                         future: _fetchPartyStats(),
+                        // key ผูกกับ finishedCount ทำให้ rebuild + ดึงข้อมูลใหม่ทุกครั้งที่มีคนวิ่งเสร็จ
+                        key: ValueKey(finishedCount),
                         builder: (context, statsSnapshot) {
                           if (statsSnapshot.connectionState ==
                               ConnectionState.waiting) {
@@ -507,18 +511,31 @@ class _PartyResultScreenState extends State<PartyResultScreen> {
                             itemBuilder: (context, index) {
                               String uid = members.keys.elementAt(index);
                               var memberInfo = members[uid];
+                              final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                              final isMe = uid == currentUid;
 
                               int statIndex = stats.indexWhere(
                                 (s) => s['user_id'] == uid,
                               );
-                              var userStat = statIndex != -1
-                                  ? stats[statIndex]
-                                  : null;
+                              // ถ้าเป็นตัวเอง ใช้ข้อมูลจาก widget โดยตรงเลย (ไม่ต้องรอ Supabase)
+                              dynamic userStat;
+                              if (isMe) {
+                                userStat = {
+                                  'distance': widget.distance,
+                                  'duration_seconds': widget.duration.inSeconds,
+                                  'calories': widget.calories,
+                                  'pace': widget.distance > 0
+                                      ? (widget.duration.inSeconds / 60.0) / widget.distance
+                                      : 0.0,
+                                };
+                              } else {
+                                userStat = statIndex != -1 ? stats[statIndex] : null;
+                              }
 
                               return _buildResultCard(
                                 memberInfo['username'] ?? "Unknown",
                                 userStat,
-                                uid == FirebaseAuth.instance.currentUser?.uid,
+                                isMe,
                                 uid,
                               );
                             },

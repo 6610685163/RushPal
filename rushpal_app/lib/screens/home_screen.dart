@@ -14,6 +14,7 @@ import 'settings_screen.dart';
 import 'profile_screen.dart';
 import 'start_run_screen.dart';
 import 'party_screen.dart';
+import 'quest_screen.dart';
 import 'package:rushpal/widgets/user_avatar.dart';
 
 // RouteObserver สำหรับตรวจจับว่า HomeScreen กลับมา visible หรือไม่
@@ -554,7 +555,12 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildTopIconButton(Icons.notifications_none_rounded, () {}),
+                  _buildTopIconButton(Icons.assignment_rounded, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (c) => const QuestScreen()),
+                    );
+                  }),
                   const SizedBox(width: 10),
                   _buildTopIconButton(Icons.settings_rounded, () {
                     Navigator.push(

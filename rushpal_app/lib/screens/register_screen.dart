@@ -49,6 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'points': 1000,
             'inventory': [],
             'level': 1,
+            'exp': 0,
             'characterId': '',
             'skinId': '',
           });
