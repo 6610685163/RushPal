@@ -4,8 +4,8 @@ import 'package:rushpal/screens/market_screen.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/stats_screen.dart';
 import 'package:rushpal/screens/friend_screen.dart';
-import 'package:rushpal/services/friend_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,7 +17,6 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   int _pendingRequestCount = 0;
 
-  // สร้าง pages ครั้งเดียวตอนประกาศ ไม่ต้องรอ initState
   late final List<Widget> _pages = [
     const HomeScreen(),
     const MarketScreen(),
@@ -33,31 +32,47 @@ class _MainScreenState extends State<MainScreen> {
     ),
   ];
 
+  // Stream สำหรับ listen pending requests แบบ real-time ที่ navbar
+  Stream<DocumentSnapshot>? _userDocStream;
+
   @override
   void initState() {
     super.initState();
-    _loadPendingCount();
-  }
-
-  Future<void> _loadPendingCount() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final requests = await FriendService.getPendingRequests(user.uid);
-      if (mounted) {
-        setState(() {
-          _pendingRequestCount = requests.length;
-        });
-      }
+      _userDocStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      backgroundColor: AppTheme.backgroundCream,
-      body: IndexedStack(index: _selectedIndex, children: _pages),
-      bottomNavigationBar: SafeArea(child: _buildCapybaraNavbar()),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _userDocStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final pending = data['friendRequests'];
+          int count = 0;
+          if (pending is List) count = pending.length;
+
+          // อัปเดต badge โดยไม่ต้องรอ onRequestsChanged callback
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _pendingRequestCount != count) {
+              setState(() => _pendingRequestCount = count);
+            }
+          });
+        }
+
+        return Scaffold(
+          extendBody: true,
+          backgroundColor: AppTheme.backgroundCream,
+          body: IndexedStack(index: _selectedIndex, children: _pages),
+          bottomNavigationBar: SafeArea(child: _buildCapybaraNavbar()),
+        );
+      },
     );
   }
 
@@ -83,12 +98,7 @@ class _MainScreenState extends State<MainScreen> {
           _buildNavItem(Icons.home_rounded, 0, 'Home', 0),
           _buildNavItem(Icons.storefront_rounded, 1, 'Shop', 0),
           _buildNavItem(Icons.bar_chart_rounded, 2, 'Stats', 0),
-          _buildNavItem(
-            Icons.groups_rounded,
-            3,
-            'Friends',
-            _pendingRequestCount,
-          ),
+          _buildNavItem(Icons.groups_rounded, 3, 'Friends', _pendingRequestCount),
         ],
       ),
     );
@@ -102,9 +112,6 @@ class _MainScreenState extends State<MainScreen> {
         setState(() {
           _selectedIndex = index;
         });
-        if (index == 3) {
-          _loadPendingCount();
-        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -148,10 +155,7 @@ class _MainScreenState extends State<MainScreen> {
                     right: -8,
                     child: Container(
                       padding: const EdgeInsets.all(3),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,

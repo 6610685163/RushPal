@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 class DatabaseService {
   String get _baseUrl {
     return defaultTargetPlatform == TargetPlatform.android
-        ? 'http://192.168.1.56:3000/api/runs'
+        ? 'http://10.0.2.2/api/runs'
         : 'http://localhost:3000/api/runs';
   }
 
