@@ -458,7 +458,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: const Center(
                       child: Text(
-                        "EDIT PROFILE",
+                        "EDIT ACCOUNT",
                         style: TextStyle(
                           color: AppTheme.pureBlack,
                           fontWeight: FontWeight.w900,

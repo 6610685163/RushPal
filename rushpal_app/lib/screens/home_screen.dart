@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/character_model.dart';
+import '../services/party_service.dart';
 import 'select_character_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
@@ -678,15 +679,197 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     return Padding(
       padding: const EdgeInsets.only(bottom: 50),
       child: Center(
-        child: _GameStartButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const StartRunScreen()),
-            );
-          },
-        ),
+        child: currentPartyCode != null
+            ? _PartyStartButton(
+                partyCode: currentPartyCode!,
+                onLeaveParty: () {
+                  setState(() {
+                    currentPartyCode = null;
+                    partyMembers = [];
+                  });
+                },
+              )
+            : _GameStartButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const StartRunScreen(),
+                    ),
+                  );
+                },
+              ),
       ),
+    );
+  }
+}
+
+// ปุ่มสำหรับตอนอยู่ในปาร์ตี้ — ทำงานเหมือน START RUN / READY ในหน้า Party
+class _PartyStartButton extends StatefulWidget {
+  final String partyCode;
+  final VoidCallback onLeaveParty;
+  const _PartyStartButton({
+    required this.partyCode,
+    required this.onLeaveParty,
+  });
+
+  @override
+  __PartyStartButtonState createState() => __PartyStartButtonState();
+}
+
+class __PartyStartButtonState extends State<_PartyStartButton> {
+  bool _isPressed = false;
+  bool _isLoading = false;
+
+  Future<void> _handleTap(
+    Map<String, dynamic> members,
+    String currentUserUid,
+    bool isLeader,
+    bool canStart,
+  ) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      if (isLeader) {
+        if (canStart) {
+          bool success = await PartyService.startParty(
+            partyCode: widget.partyCode,
+          );
+          if (!success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('เริ่มเกมไม่สำเร็จ!'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('รอให้ทุกคนกด Ready ก่อน!')),
+            );
+          }
+        }
+      } else {
+        bool myReadyStatus = members[currentUserUid]?['isReady'] ?? false;
+        await PartyService.toggleReady(
+          partyCode: widget.partyCode,
+          uid: currentUserUid,
+          isReady: !myReadyStatus,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('parties')
+          .doc(widget.partyCode)
+          .snapshots(),
+      builder: (context, snapshot) {
+        // ถ้า party ถูกลบ ให้ reset state
+        if (snapshot.hasData && !snapshot.data!.exists) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            SharedPreferences.getInstance().then((p) => p.remove('partyCode'));
+            widget.onLeaveParty();
+          });
+        }
+
+        // ถ้า party เริ่มวิ่งแล้ว ให้ navigate ไปหน้า StartRunScreen
+        if (snapshot.hasData &&
+            snapshot.data!.exists &&
+            (snapshot.data!.data() as Map<String, dynamic>)['status'] ==
+                'running') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      StartRunScreen(partyCode: widget.partyCode),
+                ),
+              );
+            }
+          });
+        }
+
+        final currentUserUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+        Map<String, dynamic> members = {};
+        bool isLeader = false;
+        bool isReady = false;
+        bool canStart = true;
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final partyData = snapshot.data!.data() as Map<String, dynamic>;
+          members = (partyData['members'] as Map<String, dynamic>?) ?? {};
+          isLeader = members[currentUserUid]?['isLeader'] ?? false;
+          isReady = members[currentUserUid]?['isReady'] ?? false;
+
+          if (members.length > 1) {
+            canStart = members.entries
+                .where((e) => e.key != currentUserUid)
+                .every((e) => e.value['isReady'] == true);
+          }
+        }
+
+        // กำหนดสี + ข้อความตาม state
+        Color buttonColor;
+        String buttonLabel;
+        if (isLeader) {
+          buttonColor = canStart ? Colors.green : Colors.grey;
+          buttonLabel = 'START RUN';
+        } else {
+          buttonColor = isReady ? Colors.orange : Colors.green;
+          buttonLabel = isReady ? 'CANCEL' : 'READY';
+        }
+
+        return GestureDetector(
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) {
+            setState(() => _isPressed = false);
+            _handleTap(members, currentUserUid, isLeader, canStart);
+          },
+          onTapCancel: () => setState(() => _isPressed = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            margin: EdgeInsets.only(top: _isPressed ? 8.0 : 0.0),
+            width: 240,
+            height: 70,
+            decoration: BoxDecoration(
+              color: buttonColor,
+              borderRadius: BorderRadius.circular(35),
+              border: Border.all(color: AppTheme.pureBlack, width: 4),
+              boxShadow: _isPressed
+                  ? []
+                  : [
+                      const BoxShadow(
+                        color: AppTheme.pureBlack,
+                        blurRadius: 0,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+            ),
+            child: Center(
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Text(
+                      buttonLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
