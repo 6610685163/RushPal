@@ -158,11 +158,20 @@ exports.getQuestStatus = async (req, res) => {
         const { partycode } = req.query;
 
         // หาวันที่ของวันนี้ในเวลาไทย (UTC+7)
+        // ✅ โค้ดใหม่ (ถูกต้อง)
         const now = new Date();
-        const todayTH = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-        todayTH.setHours(0, 0, 0, 0);
-        const todayUTC = new Date(todayTH.getTime() - (7 * 60 * 60 * 1000));
-        const dateString = todayTH.toISOString().split('T')[0];
+        // offset +7 ชั่วโมง แล้วตัดเวลาทิ้ง → ได้ต้นวันในเวลาไทย (เป็น UTC ms)
+        const TH_OFFSET_MS = 7 * 60 * 60 * 1000;
+        const nowInTH = new Date(now.getTime() + TH_OFFSET_MS);
+        const startOfDayTH = new Date(Date.UTC(
+            nowInTH.getUTCFullYear(),
+            nowInTH.getUTCMonth(),
+            nowInTH.getUTCDate(),
+            0, 0, 0, 0
+        ));
+        // แปลงกลับเป็น UTC จริงๆ สำหรับ query Supabase
+        const todayUTC = new Date(startOfDayTH.getTime() - TH_OFFSET_MS);
+        const dateString = `${nowInTH.getUTCFullYear()}-${String(nowInTH.getUTCMonth()+1).padStart(2,'0')}-${String(nowInTH.getUTCDate()).padStart(2,'0')}`;
 
         console.log(`[Quest] user_id=${user_id} partycode=${partycode}`);
         console.log(`[Quest] todayUTC=${todayUTC.toISOString()} dateString=${dateString}`);
@@ -225,10 +234,11 @@ exports.claimQuest = async (req, res) => {
     try {
         const { user_id, quest_type } = req.body; 
         
+        // ✅ โค้ดใหม่
         const now = new Date();
-        const todayTH = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-        todayTH.setHours(0, 0, 0, 0);
-        const dateString = todayTH.toISOString().split('T')[0];
+        const TH_OFFSET_MS = 7 * 60 * 60 * 1000;
+        const nowInTH = new Date(now.getTime() + TH_OFFSET_MS);
+        const dateString = `${nowInTH.getUTCFullYear()}-${String(nowInTH.getUTCMonth()+1).padStart(2,'0')}-${String(nowInTH.getUTCDate()).padStart(2,'0')}`;
 
         const db = admin.firestore();
         const userRef = db.collection('users').doc(user_id);
