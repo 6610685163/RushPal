@@ -445,7 +445,7 @@ class _MarketScreenState extends State<MarketScreen> {
               alignment: Alignment.center,
               children: [
                 Positioned(
-                  bottom: 55,
+                  bottom: 67,
                   child: Container(
                     width: 120,
                     height: 18,

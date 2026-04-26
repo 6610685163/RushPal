@@ -276,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
           children: [
             Positioned.fill(
               child: Image.asset(
-                'assets/images/home_bg.png',
+                'assets/images/home_bg.jpg',
                 fit: BoxFit.cover,
               ),
             ),
@@ -373,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                   allMembers[i],
                                   i,
                                   xPositions[i],
-                                  100,
+                                  112,
                                 ),
                               );
                             }
@@ -382,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                 allMembers[0],
                                 0,
                                 xPositions[0],
-                                80.0,
+                                97.0,
                               ),
                             );
                           } else {
@@ -391,11 +391,11 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                               double side = (i % 2 != 0) ? -1.0 : 1.0;
                               double xPos = depth * 100.0 * side;
                               characterStack.add(
-                                buildCharacter(allMembers[i], i, xPos, 100),
+                                buildCharacter(allMembers[i], i, xPos, 112),
                               );
                             }
                             characterStack.add(
-                              buildCharacter(allMembers[0], 0, 0.0, 80.0),
+                              buildCharacter(allMembers[0], 0, 0.0, 97.0),
                             );
                           }
 
