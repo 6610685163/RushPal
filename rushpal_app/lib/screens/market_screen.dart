@@ -21,6 +21,9 @@ class _MarketScreenState extends State<MarketScreen> {
   // เพิ่มตัวแปรนี้สำหรับเก็บท่าทางที่ผู้ใช้กดดู (พรีวิว)
   String? previewAnimation;
 
+  // ป้องกัน Firestore snapshot ยิงทับค่าที่เพิ่ง equip ไป
+  bool _isEquipping = false;
+
   // ตัวแปรสำหรับระบบเงินและไอเทม
   int userPoints = 0;
   List<String> inventory = [];
@@ -57,12 +60,15 @@ class _MarketScreenState extends State<MarketScreen> {
               final newIdle = data['equipped_idle'] ?? 'idle';
               final newReady = data['equipped_ready'] ?? 'ready';
 
-              // อัปเดต ValueNotifier นอก setState เพื่อให้ ValueListenableBuilder rebuild ถูกต้อง
-              if (PlayerState.currentIdle.value != newIdle) {
-                PlayerState.currentIdle.value = newIdle;
-              }
-              if (PlayerState.currentReady.value != newReady) {
-                PlayerState.currentReady.value = newReady;
+              // อัปเดต ValueNotifier เฉพาะตอนที่ไม่ได้กำลัง equip อยู่
+              // เพื่อป้องกัน snapshot เก่า overwrite ค่าใหม่ที่เพิ่ง equip
+              if (!_isEquipping) {
+                if (PlayerState.currentIdle.value != newIdle) {
+                  PlayerState.currentIdle.value = newIdle;
+                }
+                if (PlayerState.currentReady.value != newReady) {
+                  PlayerState.currentReady.value = newReady;
+                }
               }
 
               if (mounted) {
@@ -149,20 +155,29 @@ class _MarketScreenState extends State<MarketScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
+    // ล็อกไม่ให้ snapshot listener ทับค่า
+    _isEquipping = true;
+
     String fieldToUpdate = category.toLowerCase() == 'idle'
         ? 'equipped_idle'
         : 'equipped_ready';
 
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      fieldToUpdate: animKey,
-    });
-
-    // อัปเดต ValueNotifier โดยตรง (ไม่ใส่ใน setState) เพื่อให้ทุก ValueListenableBuilder รับรู้ทันที
+    // อัปเดต PlayerState ทันทีก่อน (ให้ UI response ไว)
     if (category.toLowerCase() == 'idle') {
       PlayerState.currentIdle.value = animKey;
     } else {
       PlayerState.currentReady.value = animKey;
     }
+
+    // อัปเดต previewAnimation เพื่อให้โมเดล 3D เปลี่ยนท่าใน market หน้านี้ด้วย
+    setState(() {
+      previewAnimation = animKey;
+    });
+
+    // บันทึกลง Firestore
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      fieldToUpdate: animKey,
+    });
 
     // ซิงค์ animation ให้เพื่อนในปาร์ตี้เห็นด้วย
     await PartyService.syncAnimationToParty(
@@ -171,10 +186,9 @@ class _MarketScreenState extends State<MarketScreen> {
       readyKey: PlayerState.currentReady.value,
     );
 
-    // อัปเดต previewAnimation เพื่อให้โมเดล 3D เปลี่ยนท่าใน market หน้านี้ด้วย
-    setState(() {
-      previewAnimation = animKey;
-    });
+    // ปล่อย lock หลังจาก snapshot มีเวลา settle (500ms)
+    await Future.delayed(const Duration(milliseconds: 500));
+    _isEquipping = false;
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -719,87 +733,108 @@ class _MarketScreenState extends State<MarketScreen> {
                                                   color: isEquipped
                                                       ? AppTheme.primaryPink
                                                       : Colors.grey.shade200,
-                                                  width: isEquipped ? 2 : 1.5,
+                                                  width: 2,
                                                 ),
                                               ),
-                                              child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
+                                              child: Stack(
+                                                alignment: Alignment.center,
                                                 children: [
-                                                  Icon(
-                                                    isOwned
-                                                        ? Icons
-                                                              .accessibility_new_rounded
-                                                        : Icons.lock_rounded,
-                                                    size: 28,
-                                                    color: isEquipped
-                                                        ? AppTheme.primaryPink
-                                                        : isOwned
-                                                        ? Colors.grey.shade400
-                                                        : Colors.grey.shade300,
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    animName,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: isEquipped
-                                                          ? FontWeight.bold
-                                                          : FontWeight.normal,
-                                                      color: isEquipped
-                                                          ? AppTheme.primaryPink
-                                                          : AppTheme.textLight,
-                                                    ),
-                                                    textAlign: TextAlign.center,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  if (isEquipped)
-                                                    Container(
-                                                      margin:
-                                                          const EdgeInsets.only(
-                                                            top: 4,
-                                                          ),
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 2,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: AppTheme
-                                                            .primaryPink,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              10,
-                                                            ),
+                                                  Column(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Icon(
+                                                        isOwned
+                                                            ? Icons
+                                                                  .checkroom_rounded
+                                                            : Icons
+                                                                  .lock_rounded,
+                                                        size: 28,
+                                                        color: isEquipped
+                                                            ? AppTheme
+                                                                  .primaryPink
+                                                            : isOwned
+                                                            ? Colors
+                                                                  .grey
+                                                                  .shade400
+                                                            : Colors
+                                                                  .grey
+                                                                  .shade300,
                                                       ),
-                                                      child: const Text(
-                                                        'ACTIVE',
+                                                      const SizedBox(height: 6),
+                                                      Text(
+                                                        animName,
                                                         style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 8,
-                                                          fontWeight:
-                                                              FontWeight.bold,
+                                                          fontSize: 12,
+                                                          fontWeight: isEquipped
+                                                              ? FontWeight.bold
+                                                              : FontWeight
+                                                                    .normal,
+                                                          color: isEquipped
+                                                              ? AppTheme
+                                                                    .primaryPink
+                                                              : AppTheme
+                                                                    .textLight,
                                                         ),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
-                                                    )
-                                                  else if (!isOwned)
-                                                    Container(
-                                                      margin:
-                                                          const EdgeInsets.only(
-                                                            top: 4,
+                                                      if (isEquipped)
+                                                        Container(
+                                                          margin:
+                                                              const EdgeInsets.only(
+                                                                top: 4,
+                                                              ),
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 2,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: AppTheme
+                                                                .primaryPink,
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  10,
+                                                                ),
                                                           ),
-                                                      child: Text(
-                                                        '$price G',
-                                                        style: const TextStyle(
-                                                          color: Colors.amber,
-                                                          fontSize: 10,
-                                                          fontWeight:
-                                                              FontWeight.bold,
+                                                          child: const Text(
+                                                            'ACTIVE',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 8,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        )
+                                                      else if (!isOwned)
+                                                        Container(
+                                                          margin:
+                                                              const EdgeInsets.only(
+                                                                top: 4,
+                                                              ),
+                                                          child: Text(
+                                                            '$price G',
+                                                            style:
+                                                                const TextStyle(
+                                                                  color: Colors
+                                                                      .amber,
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                          ),
                                                         ),
-                                                      ),
-                                                    ),
+                                                    ],
+                                                  ),
                                                 ],
                                               ),
                                             ),
