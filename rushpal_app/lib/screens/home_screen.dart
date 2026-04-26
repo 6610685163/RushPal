@@ -15,6 +15,10 @@ import 'start_run_screen.dart';
 import 'party_screen.dart';
 import 'package:rushpal/widgets/user_avatar.dart';
 
+// RouteObserver สำหรับตรวจจับว่า HomeScreen กลับมา visible หรือไม่
+final RouteObserver<ModalRoute<void>> homeRouteObserver =
+    RouteObserver<ModalRoute<void>>();
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -22,7 +26,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with RouteAware {
   final O3DController _controller = O3DController();
   String username = "Loading...";
   String? profileImageUrl; // ตัวแปรสำหรับเก็บ URL รูป
@@ -38,6 +42,41 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<DocumentSnapshot>? _partySubscription;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // subscribe RouteObserver เพื่อรับ callback ตอน pop กลับมา
+    homeRouteObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void didPopNext() {
+    // ถูกเรียกเมื่อ screen ด้านบน (เช่น market) ถูก pop กลับมาที่ home
+    // force อัปเดต PlayerState จาก Firestore ล่าสุด
+    _refreshAnimationFromFirestore();
+  }
+
+  Future<void> _refreshAnimationFromFirestore() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    if (doc.exists && doc.data() != null) {
+      final data = doc.data()!;
+      final newIdle = data['equipped_idle'] ?? 'idle';
+      final newReady = data['equipped_ready'] ?? 'ready';
+      // force set ค่าใหม่เสมอ เพื่อให้ ValueListenableBuilder rebuild O3D
+      PlayerState.currentIdle.value = '';
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (mounted) {
+        PlayerState.currentIdle.value = newIdle;
+        PlayerState.currentReady.value = newReady;
+      }
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
     _listenToUserData();
@@ -46,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    homeRouteObserver.unsubscribe(this);
     _userSubscription?.cancel();
     _partySubscription?.cancel();
     super.dispose();
@@ -106,12 +146,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   // เช็คก่อนเซ็ตเพื่อป้องกัน Firestore snapshot เก่า overwrite ค่าใหม่
                   PlayerState.currentCharacter.value = foundChar;
                   PlayerState.currentSkin.value = foundSkin;
-                  if (PlayerState.currentIdle.value != newIdle) {
-                    PlayerState.currentIdle.value = newIdle;
-                  }
-                  if (PlayerState.currentReady.value != newReady) {
-                    PlayerState.currentReady.value = newReady;
-                  }
+                  // อัปเดต PlayerState จาก Firestore เสมอ
+                  // market อัปเดต Firestore ก่อน ดังนั้น snapshot นี้จะได้ค่าใหม่ถูกต้อง
+                  PlayerState.currentIdle.value = newIdle;
+                  PlayerState.currentReady.value = newReady;
 
                   if (mounted) setState(() {});
                 } catch (e) {
@@ -301,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     O3D(
                                       key: ValueKey(
-                                        "home_char_${member.skin.id}_${member.idleId}_$index",
+                                        "home_char_${member.skin.id}_${index == 0 ? currentIdle : member.idleId}_$index",
                                       ),
                                       controller: index == 0
                                           ? _controller
@@ -312,7 +350,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       cameraControls: false,
                                       backgroundColor: Colors.transparent,
                                       exposure: 0.9,
-                                      animationName: member.idleId,
+                                      animationName: index == 0
+                                          ? currentIdle
+                                          : member.idleId,
                                     ),
                                   ],
                                 ),

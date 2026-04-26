@@ -64,7 +64,7 @@ final List<Character> myCharacters = [
       Skin(
         id: 'skin_f_3',
         name: 'Pink',
-        modelPath: 'assets/models/fern_pink_run.glb',
+        modelPath: 'assets/models/fern_pp_run.glb',
       ),
     ],
   ),

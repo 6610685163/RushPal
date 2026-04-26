@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -28,6 +29,7 @@ class RushpalApp extends StatelessWidget {
       title: 'Rushpal',
       theme: AppTheme.theme,
       home: const LoginScreen(),
+      navigatorObservers: [homeRouteObserver],
     );
   }
 }
