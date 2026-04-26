@@ -311,7 +311,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       ),
                     ],
                   ),
-            const SizedBox(height: 80), // เผื่อที่ให้ Bottom Nav
+            const SizedBox(height: 130), // เผื่อที่ให้ Bottom Nav
           ],
         ),
       ),

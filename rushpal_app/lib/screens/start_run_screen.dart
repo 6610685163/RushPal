@@ -360,7 +360,17 @@ class _StartRunScreenState extends State<StartRunScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+            // 🌟 แก้ไข Padding ตรงนี้เพื่อดันปุ่มหนีขอบจอ
+            padding: EdgeInsets.only(
+              top: 30,
+              left: 20,
+              right: 20,
+              bottom:
+                  30 +
+                  MediaQuery.of(
+                    context,
+                  ).padding.bottom, // เช็คความสูงของ Nav Bar อัตโนมัติ!
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
