@@ -23,7 +23,7 @@ exports.saveRunResult = async (req, res) => {
         if (userDoc.exists) {
             let userData = userDoc.data();
             let currentLevel = userData.level || 1;
-            let currentExp = userData.exp || 0;
+            let currentExp = userData.exp ?? 0;  // ใช้ ?? แทน || เพื่อรองรับ exp = 0
             let currentPoints = userData.points || 0;
 
             currentExp += earnedExp;
@@ -39,11 +39,11 @@ exports.saveRunResult = async (req, res) => {
                 expNeeded = currentLevel * 50; 
             }
 
-            await userRef.update({
+            await userRef.set({
                 level: currentLevel,
                 exp: currentExp,
                 points: currentPoints + earnedGold + totalLevelUpBonus
-            });
+            }, { merge: true });
 
             res.status(201).json({
                 message: "บันทึกข้อมูลและอัปเดตเลเวลสำเร็จ!",
@@ -157,31 +157,38 @@ exports.getQuestStatus = async (req, res) => {
         const { user_id } = req.params;
         const { partycode } = req.query;
 
-        // หาวันที่ของวันนี้ (เริ่มตอนเที่ยงคืน 00:00:00)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dateString = today.toISOString().split('T')[0]; // เช่น "2026-04-26"
+        // หาวันที่ของวันนี้ในเวลาไทย (UTC+7)
+        const now = new Date();
+        const todayTH = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+        todayTH.setHours(0, 0, 0, 0);
+        const todayUTC = new Date(todayTH.getTime() - (7 * 60 * 60 * 1000));
+        const dateString = todayTH.toISOString().split('T')[0];
 
-        // 1. คำนวณระยะทางวิ่งส่วนตัว (ของวันนี้)
-        const { data: personalData } = await supabase
+        console.log(`[Quest] user_id=${user_id} partycode=${partycode}`);
+        console.log(`[Quest] todayUTC=${todayUTC.toISOString()} dateString=${dateString}`);
+
+        // 1. คำนวณระยะทางวิ่งส่วนตัว (ของวันนี้ เวลาไทย)
+        const { data: personalData, error: personalError } = await supabase
             .from('runs')
             .select('distance')
             .eq('user_id', user_id)
-            .gte('created_at', today.toISOString());
+            .gte('created_at', todayUTC.toISOString());
+
+        console.log(`[Quest] personalData=${JSON.stringify(personalData)} error=${personalError?.message}`);
 
         let personalDistance = 0;
         if (personalData) {
             personalDistance = personalData.reduce((sum, run) => sum + (run.distance || 0), 0);
         }
 
-        // 2. คำนวณระยะทางวิ่งปาร์ตี้ (ของวันนี้)
+        // 2. คำนวณระยะทางวิ่งปาร์ตี้ (ของวันนี้ เวลาไทย)
         let partyDistance = 0;
         if (partycode && partycode !== 'null' && partycode.trim() !== '') {
             const { data: partyData } = await supabase
                 .from('runs')
                 .select('distance')
                 .eq('partycode', partycode)
-                .gte('created_at', today.toISOString());
+                .gte('created_at', todayUTC.toISOString());
             
             if (partyData) {
                 partyDistance = partyData.reduce((sum, run) => sum + (run.distance || 0), 0);
@@ -218,9 +225,10 @@ exports.claimQuest = async (req, res) => {
     try {
         const { user_id, quest_type } = req.body; 
         
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dateString = today.toISOString().split('T')[0];
+        const now = new Date();
+        const todayTH = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+        todayTH.setHours(0, 0, 0, 0);
+        const dateString = todayTH.toISOString().split('T')[0];
 
         const db = admin.firestore();
         const userRef = db.collection('users').doc(user_id);
@@ -239,7 +247,7 @@ exports.claimQuest = async (req, res) => {
         }
 
         let currentLevel = userData.level || 1;
-        let currentExp = userData.exp || 0;
+        let currentExp = userData.exp ?? 0;  // ใช้ ?? รองรับ user เก่าที่ไม่มี exp field
         let currentPoints = userData.points || 0;
 
         // 💡 แจกรางวัลเควส: 20 G และ 100 EXP
@@ -269,7 +277,7 @@ exports.claimQuest = async (req, res) => {
         if (quest_type === 'personal') updates.lastPersonalQuestClaim = dateString;
         else if (quest_type === 'party') updates.lastPartyQuestClaim = dateString;
 
-        await userRef.update(updates);
+        await userRef.set(updates, { merge: true });
 
         res.status(200).json({ 
             message: "รับรางวัลสำเร็จ!", 
