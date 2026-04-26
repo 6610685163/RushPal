@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class FriendService {
   // ใช้ 10.0.2.2 สำหรับ Android Emulator เพื่อชี้มาที่ localhost ของคอมพิวเตอร์
-  static const String baseUrl = 'http://192.168.1.56:3000/api/friends';
+  static const String baseUrl = 'http://10.0.2.2:3000/api/friends';
 
   static Future<Map<String, dynamic>?> searchFriend(String username) async {
     try {

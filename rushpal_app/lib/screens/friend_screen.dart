@@ -747,72 +747,122 @@ class _FriendScreenState extends State<FriendScreen> {
   }
 
   Widget _buildFriendItem(Map<String, dynamic> friend) {
-    // 1. ดึงข้อมูลที่ Backend ส่งมาให้แล้วมาใช้ตรงๆ เลย (ไม่ต้องใช้ StreamBuilder แล้ว!)
     String? friendUid = friend['uid'];
+
     if (friendUid == null) return const SizedBox.shrink();
 
-    String displayUsername = friend['username'] ?? "Unknown";
-    String displayLevel = (friend['level'] ?? 1).toString();
-    String? profileImageUrl = friend['profileImageUrl'];
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(friendUid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String displayUsername = friend['username'] ?? "Unknown";
+        String displayLevel = (friend['level'] ?? 1).toString();
+        String? profileImageUrl = friend['profileImageUrl'];
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.pureBlack, width: 3),
-        boxShadow: const [
-          BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
-        ],
-      ),
-      child: Row(
-        children: [
-          UserAvatar(imageUrl: profileImageUrl, radius: 25),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayUsername,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                    color: AppTheme.pureBlack,
-                  ),
-                ),
-                Text(
-                  "Level $displayLevel",
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          displayUsername = userData['username'] ?? displayUsername;
+          displayLevel = (userData['level'] ?? 1).toString();
+          profileImageUrl = userData['profileImageUrl'];
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.pureBlack, width: 3),
+            boxShadow: const [
+              BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+            ],
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: Colors.green.withOpacity(0.5),
-                width: 1.5,
+          child: Row(
+            children: [
+              UserAvatar(imageUrl: profileImageUrl, radius: 25),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayUsername,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: AppTheme.pureBlack,
+                      ),
+                    ),
+                    Text(
+                      "Level $displayLevel",
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            child: Text(
-              "Online",
-              style: TextStyle(
-                color: Colors.green[700],
-                fontWeight: FontWeight.bold,
-                fontSize: 10,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: Colors.green.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      "Online",
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _confirmRemoveFriend(
+                      context,
+                      friendUid!,
+                      displayUsername,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.pureBlack, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AppTheme.pureBlack,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.person_remove_rounded,
+                        color: Colors.red,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
