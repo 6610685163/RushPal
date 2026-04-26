@@ -3,6 +3,8 @@ import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/screens/register_screen.dart';
 import 'package:rushpal/screens/main_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,68 +14,138 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // เพิ่ม Controller
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
-  // ฟังก์ชัน Login
   Future<void> _login() async {
-    setState(() {
-      _isLoading = true; // เริ่มหมุน Loading
-    });
-
+    setState(() => _isLoading = true);
     try {
-      print("🔥 1. กำลังส่งข้อมูลอีเมล/รหัสผ่านไปที่ Firebase...");
+      String identifier = emailController.text.trim();
+      String password = passwordController.text.trim();
+      String loginEmail = identifier;
+
+      // ตรวจสอบว่าสิ่งที่กรอกมาใช่อีเมลหรือไม่ (ถ้าไม่มี '@' ถือว่าเป็น Username)
+      if (!identifier.contains('@')) {
+        // ค้นหาอีเมลจาก Firestore โดยใช้ username
+        final userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('username', isEqualTo: identifier)
+            .limit(1)
+            .get();
+
+        // ถ้าไม่เจอ username นี้ในระบบ
+        if (userQuery.docs.isEmpty) {
+          if (mounted) _showError("ไม่พบชื่อผู้ใช้นี้ในระบบ");
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // ถ้าเจอ ดึงอีเมลที่ผูกกับ username นี้มาใช้ล็อกอิน
+        loginEmail = userQuery.docs.first.data()['email'];
+      }
+
+      // นำอีเมลที่ได้ (หรือที่กรอกมาแต่แรก) ไป Login ผ่าน Firebase Auth
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: loginEmail,
+        password: password,
       );
 
-      print("✅ 2. Firebase ยืนยันตัวตนสำเร็จ!");
-
       if (mounted) {
-        print("🚀 3. กำลังนำทางไปหน้า MainScreen...");
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       }
     } on FirebaseAuthException catch (e) {
-      print("🚨 FIREBASE AUTH ERROR: ${e.code} - ${e.message}");
-
       String errorMessage = "เกิดข้อผิดพลาด กรุณาลองใหม่";
       if (e.code == 'user-not-found') {
-        errorMessage = "ไม่พบอีเมลนี้ในระบบ";
+        errorMessage = "ไม่พบผู้ใช้นี้ในระบบ";
       } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        errorMessage =
-            "รหัสผ่านไม่ถูกต้อง!"; 
+        errorMessage = "รหัสผ่านไม่ถูกต้อง!";
       } else if (e.code == 'invalid-email') {
         errorMessage = "รูปแบบอีเมลไม่ถูกต้อง";
       }
+      if (mounted) _showError(errorMessage);
+    } catch (e) {
+      print("UNKNOWN ERROR: $e");
+      if (mounted) _showError("เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Login ด้วย Google
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      // เช็คว่ามีข้อมูลใน Firestore หรือยัง (เผื่อผู้ใช้ล็อกอิน Google ครั้งแรกผ่านหน้านี้)
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+              'username': userCredential.user!.displayName ?? 'Google User',
+              'email': userCredential.user!.email,
+              'created_at': Timestamp.now(),
+            });
+      }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              errorMessage,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            backgroundColor: Colors.red[800],
-            behavior: SnackBarBehavior.floating,
-          ),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       }
-    } catch (e) {
-      print("🚨 UNKNOWN ERROR: $e");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false; // หยุดหมุน Loading ไม่ว่าจะสำเร็จหรือพัง
-        });
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+      if (e.code == 'account-exists-with-different-credential') {
+        errorMessage = "อีเมลนี้ถูกใช้ลงทะเบียนด้วยวิธีอื่นแล้ว";
       }
+      if (mounted) _showError(errorMessage);
+    } catch (e) {
+      print("GOOGLE ERROR: $e");
+      if (mounted) _showError("เข้าสู่ระบบด้วย Google ล้มเหลว");
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.red[800],
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -106,21 +178,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(color: AppTheme.textLight, fontSize: 16),
                 ),
                 const SizedBox(height: 50),
-
-                // Input: Email (ใส่ Controller)
                 _buildTextField(
-                  hintText: "Enter your email",
+                  hintText: "Enter your username or email",
                   controller: emailController,
                 ),
                 const SizedBox(height: 16),
-
-                // Input: Password (ใส่ Controller)
                 _buildTextField(
                   hintText: "Enter your password",
                   isPassword: true,
                   controller: passwordController,
                 ),
-
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -132,16 +199,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Login Button - Game Style
                 _GameButton(
                   label: _isLoading ? "LOGGING IN..." : "LOGIN",
                   onPressed: _isLoading ? null : _login,
                   isLoading: _isLoading,
                 ),
-
                 const SizedBox(height: 40),
-
                 const Center(
                   child: Text(
                     "Or Login with",
@@ -149,39 +212,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _buildSocialButton(
-                      child: Image.asset(
-                        'assets/images/google.png',
-                        height: 24,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(
-                              Icons.g_mobiledata,
-                              size: 40,
-                              color: Colors.blue,
+                      child: _isGoogleLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.blue,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/images/google.png',
+                              height: 24,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.g_mobiledata,
+                                    size: 40,
+                                    color: Colors.blue,
+                                  ),
                             ),
-                      ),
                       color: Colors.white,
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 20),
-                    _buildSocialButton(
-                      child: const Icon(
-                        Icons.facebook,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                      color: const Color(0xFF1877F2),
-                      onTap: () {},
+                      onTap: _isGoogleLoading ? null : _loginWithGoogle,
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 50),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -218,7 +277,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ปรับแก้รับ Controller
   Widget _buildTextField({
     required String hintText,
     bool isPassword = false,
@@ -228,7 +286,10 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppTheme.primaryPink.withOpacity(0.3), width: 2),
+        border: Border.all(
+          color: AppTheme.primaryPink.withOpacity(0.3),
+          width: 2,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryPink.withOpacity(0.1),
@@ -256,7 +317,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildSocialButton({
     required Widget child,
     required Color color,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -302,24 +363,29 @@ class _GameButtonState extends State<_GameButton> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: widget.onPressed == null ? null : (_) => setState(() => _isPressed = true),
-      onTapUp: widget.onPressed == null ? null : (_) {
-        setState(() => _isPressed = false);
-        widget.onPressed?.call();
-      },
-      onTapCancel: widget.onPressed == null ? null : () => setState(() => _isPressed = false),
+      onTapDown: widget.onPressed == null
+          ? null
+          : (_) => setState(() => _isPressed = true),
+      onTapUp: widget.onPressed == null
+          ? null
+          : (_) {
+              setState(() => _isPressed = false);
+              widget.onPressed?.call();
+            },
+      onTapCancel: widget.onPressed == null
+          ? null
+          : () => setState(() => _isPressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
-        margin: EdgeInsets.only(top: _isPressed && !widget.isLoading ? 6.0 : 0.0),
+        margin: EdgeInsets.only(
+          top: _isPressed && !widget.isLoading ? 6.0 : 0.0,
+        ),
         width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
           color: AppTheme.primaryPink,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: AppTheme.pureBlack,
-            width: 3,
-          ),
+          border: Border.all(color: AppTheme.pureBlack, width: 3),
           boxShadow: _isPressed || widget.isLoading
               ? []
               : [

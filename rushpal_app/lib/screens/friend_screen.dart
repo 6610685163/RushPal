@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/services/friend_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rushpal/widgets/user_avatar.dart';
 
 class FriendScreen extends StatefulWidget {
   const FriendScreen({super.key});
@@ -12,38 +14,11 @@ class FriendScreen extends StatefulWidget {
 
 class _FriendScreenState extends State<FriendScreen> {
   // 1. เพิ่ม Controller และ State Variables สำหรับจัดการข้อมูล
-  final TextEditingController _searchController = TextEditingController();
-  bool _isLoading = false;
-  Map<String, dynamic>? _searchedUser;
+  final TextEditingController _searchLocalController = TextEditingController();
   List<dynamic> _myFriends = [];
+  List<dynamic> _filteredFriends = [];
   bool _isLoadingFriends = true;
   List<dynamic> _pendingRequests = [];
-
-  // 2. ฟังก์ชันเรียก API ค้นหาเพื่อน
-  void _searchUser(String username) async {
-    if (username.trim().isEmpty) return; // ถ้าพิมพ์ว่างๆ ไม่ต้องหา
-
-    print("🟢 1. แอปกำลังส่งชื่อนี้ไปหา Node.js: ${username.trim()}");
-
-    setState(() {
-      _isLoading = true;
-      _searchedUser = null;
-    });
-
-    // เรียก API ไปหา Node.js
-    final result = await FriendService.searchFriend(username.trim());
-
-    print("🟢 2. ได้ของขวัญจาก Node.js แล้วคือ: $result");
-
-    setState(() {
-      if (result != null && result['user'] != null) {
-        _searchedUser = result['user'];
-      } else {
-        _searchedUser = result; // ถ้าไม่มีกล่อง ก็ใช้ตามปกติ
-      }
-      _isLoading = false;
-    });
-  }
 
   @override
   void initState() {
@@ -57,102 +32,160 @@ class _FriendScreenState extends State<FriendScreen> {
       final friendsList = await FriendService.getFriendsList(user.uid);
       final requestsList = await FriendService.getPendingRequests(user.uid);
 
+      if (mounted) {
+        setState(() {
+          _myFriends = friendsList;
+          _filteredFriends = friendsList;
+          _pendingRequests = requestsList;
+          _isLoadingFriends = false;
+        });
+      }
+    }
+  }
+
+  // ฟังก์ชันค้นหาเพื่อนในลิสต์ตัวเอง
+  void _filterFriends(String query) {
+    if (query.trim().isEmpty) {
       setState(() {
-        _myFriends = friendsList;
-        _pendingRequests = requestsList;
-        _isLoadingFriends = false;
+        _filteredFriends = List.from(_myFriends);
+      });
+    } else {
+      setState(() {
+        _filteredFriends = _myFriends.where((friend) {
+          final username = (friend['username'] ?? '').toString().toLowerCase();
+          return username.contains(query.trim().toLowerCase());
+        }).toList();
       });
     }
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _searchLocalController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
+        leadingWidth: 80,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 20.0, top: 8.0, bottom: 8.0),
+          child: GestureDetector(
+            onTap: () {
+              // เมื่อกดปุ่มนี้ ให้โชว์หน้าต่าง Friend Requests ขึ้นมา
+              _showFriendRequestsSheet(context);
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.pureBlack, width: 2),
+                boxShadow: const [
+                  BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 3)),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.mail_rounded,
+                    color: AppTheme.pureBlack,
+                    size: 24,
+                  ),
+                  if (_pendingRequests.isNotEmpty)
+                    Positioned(
+                      right: 2,
+                      top: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${_pendingRequests.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
         title: const Text(
-          "Friends",
+          "FRIENDS",
           style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
+            color: AppTheme.pureBlack,
+            fontWeight: FontWeight.w900,
             fontSize: 20,
+            letterSpacing: 2,
           ),
         ),
         actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.person_add,
-                  color: AppTheme.primaryRed,
-                  size: 28,
+          Padding(
+            padding: const EdgeInsets.only(right: 20.0, top: 8.0, bottom: 8.0),
+            child: GestureDetector(
+              onTap: () {
+                _showAddFriendSheet(context);
+              },
+              child: Container(
+                width: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryPink,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.pureBlack, width: 2),
+                  boxShadow: const [
+                    BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 3)),
+                  ],
                 ),
-                onPressed: () {
-                  // เมื่อกดปุ่มนี้ ให้โชว์หน้าต่าง Friend Requests ขึ้นมา
-                  _showFriendRequestsSheet(context);
-                },
+                child: const Icon(
+                  Icons.person_add_rounded,
+                  color: AppTheme.pureBlack,
+                  size: 24,
+                ),
               ),
-              // 🌟 ถ้ามีคนขอแอดมา ให้โชว์จุดแดงพร้อมตัวเลข
-              if (_pendingRequests.isNotEmpty)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '${_pendingRequests.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
-          const SizedBox(width: 10),
         ],
       ),
       body: Column(
         children: [
-          // Search Bar
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 15),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(15),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.pureBlack, width: 3),
+                boxShadow: const [
+                  BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+                ],
               ),
               child: TextField(
-                controller: _searchController,
-                // สั่งให้ค้นหาเมื่อกดปุ่ม Enter/Done บนคีย์บอร์ด
-                onSubmitted: _searchUser,
+                controller: _searchLocalController,
+                onChanged: _filterFriends,
                 decoration: InputDecoration(
-                  icon: const Icon(Icons.search, color: Colors.grey),
-                  hintText: "Search username...",
+                  icon: const Icon(Icons.search, color: AppTheme.pureBlack),
+                  hintText: "Search your friends...",
                   border: InputBorder.none,
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.clear, color: Colors.grey, size: 20),
                     onPressed: () {
-                      _searchController.clear();
-                      setState(() => _searchedUser = null);
+                      _searchLocalController.clear();
+                      _filterFriends('');
                     },
                   ),
                 ),
@@ -160,47 +193,21 @@ class _FriendScreenState extends State<FriendScreen> {
             ),
           ),
 
-          // แสดงสถานะ Loading ระหว่างรอ API
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: CircularProgressIndicator(color: AppTheme.primaryRed),
-            ),
-
-          // แสดงผลลัพธ์การค้นหา (ถ้าเจอ)
-          if (!_isLoading && _searchedUser != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 10.0,
-              ),
-              child: _buildSearchResultCard(),
-            ),
-
-          // แสดงข้อความหาไม่เจอ
-          if (!_isLoading &&
-              _searchController.text.isNotEmpty &&
-              _searchedUser == null)
-            const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Text(
-                "User not found",
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 "My Friends",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: AppTheme.pureBlack,
+                ),
               ),
             ),
           ),
 
-          // Friend List (อันเดิมของคุณ)
           Expanded(
             child: _isLoadingFriends
                 ? const Center(
@@ -208,14 +215,22 @@ class _FriendScreenState extends State<FriendScreen> {
                       color: AppTheme.primaryRed,
                     ),
                   )
-                : _myFriends.isEmpty
-                ? const Center(child: Text("You don't have any friends yet."))
+                : _filteredFriends.isEmpty
+                ? const Center(
+                    child: Text(
+                      "No friends found.",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  )
                 : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: _myFriends.length,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    itemCount: _filteredFriends.length,
                     separatorBuilder: (c, i) => const SizedBox(height: 15),
                     itemBuilder: (context, index) {
-                      final friend = _myFriends[index];
+                      final friend = _filteredFriends[index];
                       return _buildFriendItem(friend);
                     },
                   ),
@@ -225,73 +240,380 @@ class _FriendScreenState extends State<FriendScreen> {
     );
   }
 
+  // --- ฟังก์ชันแสดงหน้าต่างเพิ่มเพื่อน ---
+  void _showAddFriendSheet(BuildContext context) {
+    final TextEditingController searchGlobalController =
+        TextEditingController();
+    bool isLoadingGlobal = false;
+    Map<String, dynamic>? searchedUserGlobal;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.backgroundCream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setSheetState) {
+            // 2. ฟังก์ชันเรียก API ค้นหาเพื่อน
+            void searchGlobalUser(String username) async {
+              if (username.trim().isEmpty) return;
+
+              setSheetState(() {
+                isLoadingGlobal = true;
+                searchedUserGlobal = null;
+              });
+
+              // เรียก API ไปหา Node.js
+              final result = await FriendService.searchFriend(username.trim());
+
+              setSheetState(() {
+                if (result != null && result['user'] != null) {
+                  searchedUserGlobal = result['user'];
+                } else {
+                  searchedUserGlobal = result;
+                }
+                isLoadingGlobal = false;
+              });
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "ADD FRIEND",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.pureBlack,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.pureBlack, width: 3),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AppTheme.pureBlack,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: searchGlobalController,
+                        onSubmitted: searchGlobalUser,
+                        decoration: InputDecoration(
+                          icon: const Icon(
+                            Icons.person_search,
+                            color: AppTheme.pureBlack,
+                          ),
+                          hintText: "Enter username to add...",
+                          border: InputBorder.none,
+                          suffixIcon: IconButton(
+                            icon: const Icon(
+                              Icons.clear,
+                              color: Colors.grey,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              searchGlobalController.clear();
+                              setSheetState(() => searchedUserGlobal = null);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    if (isLoadingGlobal)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: CircularProgressIndicator(
+                            color: AppTheme.primaryRed,
+                          ),
+                        ),
+                      ),
+
+                    if (!isLoadingGlobal && searchedUserGlobal != null)
+                      _buildSearchResultCard(
+                        searchedUserGlobal!,
+                        setSheetState,
+                        searchGlobalController,
+                      ),
+
+                    if (!isLoadingGlobal &&
+                        searchGlobalController.text.isNotEmpty &&
+                        searchedUserGlobal == null)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: Text(
+                            "User not found",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- UI การ์ดแสดงผลลัพธ์ตอนค้นหาเจอ ---
+  Widget _buildSearchResultCard(
+    Map<String, dynamic> searchedUser,
+    StateSetter setSheetState,
+    TextEditingController controller,
+  ) {
+    bool isAlreadyFriend = _myFriends.any(
+      (friend) => friend['uid'] == searchedUser['uid'],
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.pureBlack, width: 3),
+        boxShadow: const [
+          BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          UserAvatar(imageUrl: searchedUser['profileImageUrl'], radius: 25),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  searchedUser['username'] ?? 'Unknown',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    color: AppTheme.pureBlack,
+                  ),
+                ),
+                Text(
+                  "Level ${searchedUser['level'] ?? 1}",
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          isAlreadyFriend
+              ? Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: AppTheme.pureBlack, width: 2),
+                  ),
+                  child: const Text(
+                    "Friends",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              : ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryRed,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: const BorderSide(
+                        color: AppTheme.pureBlack,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  onPressed: () async {
+                    // 1. ดึงข้อมูลคนที่กำลังล็อกอินอยู่
+                    final currentUser = FirebaseAuth.instance.currentUser;
+
+                    // 2. เช็คความปลอดภัย: ถ้าไม่มีใครล็อกอินอยู่ (เซสชันหลุด) ให้หยุดการทำงาน
+                    if (currentUser == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'เกิดข้อผิดพลาด กรุณาล็อกอินใหม่อีกครั้ง',
+                            ),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    // 3. ใช้ UID
+                    String myUid = currentUser.uid;
+                    String friendUid = searchedUser['uid'];
+
+                    // 4. เช็คความปลอดภัย: ป้องกันผู้ใช้แอดตัวเองเป็นเพื่อน
+                    if (myUid == friendUid) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'คุณไม่สามารถเพิ่มตัวเองเป็นเพื่อนได้',
+                            ),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    // เรียกใช้ API แอดเพื่อน
+                    bool success = await FriendService.sendRequest(
+                      myUid,
+                      friendUid,
+                    );
+
+                    if (success) {
+                      // ถ้าแอดสำเร็จ ให้ล้างหน้าจอและแจ้งเตือน
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('ส่งคำขอเป็นเพื่อนแล้ว!'),
+                          ),
+                        );
+                        setSheetState(() {
+                          controller.clear();
+                        });
+                        Navigator.pop(context);
+                        _loadFriends();
+                      }
+                    }
+                  },
+                  child: const Text(
+                    "Add",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
   // --- UI หน้าต่างโชว์คำขอเป็นเพื่อน (Bottom Sheet) ---
   void _showFriendRequestsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundCream,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (BuildContext sheetContext) {
         return Container(
           padding: const EdgeInsets.all(20),
-          height: MediaQuery.of(context).size.height * 0.5, // สูงครึ่งจอ
+          height: MediaQuery.of(context).size.height * 0.5,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 "Friend Requests",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.pureBlack,
+                ),
               ),
               const SizedBox(height: 15),
 
-              // เช็คว่ามีคนแอดมาไหม
               _pendingRequests.isEmpty
                   ? const Expanded(
                       child: Center(
                         child: Text(
                           "No pending requests.",
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     )
                   : Expanded(
                       child: ListView.separated(
                         itemCount: _pendingRequests.length,
-                        separatorBuilder: (c, i) => const Divider(),
+                        separatorBuilder: (c, i) =>
+                            const Divider(color: Colors.black12),
                         itemBuilder: (context, index) {
                           final reqUser = _pendingRequests[index];
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: const CircleAvatar(
-                              backgroundColor: Colors.black12,
-                              child: Icon(Icons.person, color: Colors.grey),
+                            leading: UserAvatar(
+                              imageUrl: reqUser['profileImageUrl'],
+                              radius: 22,
                             ),
                             title: Text(
                               reqUser['username'] ?? 'Unknown',
                               style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.pureBlack,
+                              ),
+                            ),
+                            subtitle: Text(
+                              "Level ${reqUser['level'] ?? 1}",
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            subtitle: Text("Level ${reqUser['level'] ?? 1}"),
                             trailing: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryRed,
+                                backgroundColor: Colors.green,
+                                elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: const BorderSide(
+                                    color: AppTheme.pureBlack,
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                               onPressed: () async {
-                                // 🌟 1. ดึง UID ของตัวเรา
+                                // 1. ดึง UID ของตัวเรา
                                 final user = FirebaseAuth.instance.currentUser;
                                 if (user != null) {
-                                  // 🌟 2. ปิดหน้าต่าง Sheet ลงไปก่อน
+                                  // 2. ปิดหน้าต่าง Sheet ลงไปก่อน
                                   Navigator.pop(sheetContext);
 
                                   setState(() => _isLoadingFriends = true);
 
-                                  // 🌟 3. เรียก API ยอมรับเพื่อน
+                                  // 3. เรียก API ยอมรับเพื่อน
                                   bool success =
                                       await FriendService.acceptRequest(
                                         user.uid,
@@ -310,14 +632,17 @@ class _FriendScreenState extends State<FriendScreen> {
                                         ),
                                       );
                                     }
-                                    // 🌟 4. โหลดรายชื่อเพื่อนใหม่ (ชื่อจะไปโผล่ใน My Friends ทันที)
+                                    // 4. โหลดรายชื่อเพื่อนใหม่
                                     _loadFriends();
                                   }
                                 }
                               },
                               child: const Text(
                                 "Accept",
-                                style: TextStyle(color: Colors.white),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           );
@@ -331,208 +656,93 @@ class _FriendScreenState extends State<FriendScreen> {
     );
   }
 
-  // --- UI การ์ดแสดงผลลัพธ์ตอนค้นหาเจอ ---
-  Widget _buildSearchResultCard() {
-    bool isAlreadyFriend = _myFriends.any(
-      (friend) => friend['uid'] == _searchedUser!['uid'],
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withOpacity(0.05), // ไฮไลท์สีแดงอ่อนๆ
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppTheme.primaryRed.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: AppTheme.primaryRed),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _searchedUser!['username'] ?? 'Unknown',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  "Level ${_searchedUser!['level'] ?? 1}",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-
-          isAlreadyFriend
-              ? Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "Friends",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                )
-              : ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  onPressed: () async {
-                    // 🌟 1. ดึงข้อมูลคนที่กำลังล็อกอินอยู่ ณ ตอนนี้!
-                    final currentUser = FirebaseAuth.instance.currentUser;
-
-                    // 🛡️ 2. เช็คความปลอดภัย: ถ้าไม่มีใครล็อกอินอยู่ (เซสชันหลุด) ให้หยุดการทำงาน
-                    if (currentUser == null) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'เกิดข้อผิดพลาด กรุณาล็อกอินใหม่อีกครั้ง',
-                            ),
-                          ),
-                        );
-                      }
-                      return;
-                    }
-
-                    // 🌟 3. ได้เวลาใช้ UID ของจริง!
-                    String myUid = currentUser.uid;
-                    String friendUid = _searchedUser!['uid'];
-
-                    // 🛡️ 4. เช็คความปลอดภัย: ป้องกันผู้ใช้แอดตัวเองเป็นเพื่อน
-                    if (myUid == friendUid) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'คุณไม่สามารถเพิ่มตัวเองเป็นเพื่อนได้',
-                            ),
-                          ),
-                        );
-                      }
-                      return;
-                    }
-
-                    print(
-                      "🚀 ส่งคำขอแอดเพื่อนจากตัวเรา ($myUid) ไปหา ($friendUid)",
-                    );
-
-                    // เรียกใช้ API แอดเพื่อน (เหมือนที่คุณเขียนไว้เลย)
-                    bool success = await FriendService.sendRequest(
-                      myUid,
-                      friendUid,
-                    );
-
-                    if (success) {
-                      // ถ้าแอดสำเร็จ ให้ล้างหน้าจอและแจ้งเตือน
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('ส่งคำขอเป็นเพื่อนแล้ว!'),
-                          ),
-                        );
-                        setState(() {
-                          _searchedUser = null;
-                          _searchController.clear();
-                        });
-                        _loadFriends();
-                      }
-                    }
-                  },
-                  child: const Text(
-                    "Add",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-        ],
-      ),
-    );
-  }
-
-  // --- UI รายชื่อเพื่อนเดิมของคุณ ---
   Widget _buildFriendItem(Map<String, dynamic> friend) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+    // 1. ดึง UID ของเพื่อนออกมาก่อน
+    String? friendUid = friend['uid'];
+
+    if (friendUid == null) return const SizedBox.shrink();
+
+    // 2. ใช้ StreamBuilder วิ่งไปดูข้อมูลล่าสุดของเพื่อนคนนี้ใน Firestore
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(friendUid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String displayUsername = friend['username'] ?? "Unknown";
+        String displayLevel = (friend['level'] ?? 1).toString();
+        String? profileImageUrl = friend['profileImageUrl'];
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          displayUsername = userData['username'] ?? displayUsername;
+          displayLevel = (userData['level'] ?? 1).toString();
+          profileImageUrl = userData['profileImageUrl'];
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.pureBlack, width: 3),
+            boxShadow: const [
+              BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppTheme.primaryGradient,
-            ),
-            child: const CircleAvatar(
-              radius: 25,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Colors.grey),
-            ),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  friend['username'] ?? "Unknown",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+          child: Row(
+            children: [
+              UserAvatar(imageUrl: profileImageUrl, radius: 25),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayUsername,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: AppTheme.pureBlack,
+                      ),
+                    ),
+                    Text(
+                      "Level $displayLevel",
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: Colors.green.withOpacity(0.5),
+                    width: 1.5,
                   ),
                 ),
-                Text(
-                  "Level ${friend['level'] ?? 1}",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                child: Text(
+                  "Online",
+                  style: TextStyle(
+                    color: Colors.green[700],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              "Online",
-              style: TextStyle(
-                color: Colors.green[700],
-                fontWeight: FontWeight.bold,
-                fontSize: 10,
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

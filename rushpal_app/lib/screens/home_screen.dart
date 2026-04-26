@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:o3d/o3d.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/character_model.dart';
 import 'select_character_screen.dart';
@@ -11,7 +13,7 @@ import 'settings_screen.dart';
 import 'profile_screen.dart';
 import 'start_run_screen.dart';
 import 'party_screen.dart';
-
+import 'package:rushpal/widgets/user_avatar.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -22,53 +24,179 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final O3DController _controller = O3DController();
   String username = "Loading...";
+  String? profileImageUrl; // ตัวแปรสำหรับเก็บ URL รูป
+
+  // ตัวแปรสำหรับข้อมูล Database
+  int userLevel = 1;
+  int userPoints = 0;
+  int userExp = 0;
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
+
+  String? currentPartyCode;
+  List<Skin> partyMembersSkins = [];
+  StreamSubscription<DocumentSnapshot>? _partySubscription;
 
   @override
   void initState() {
     super.initState();
-    loadUserData();
+    _listenToUserData();
+    _checkExistingParty();
   }
 
-  Future<void> loadUserData() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
+  @override
+  void dispose() {
+    _userSubscription?.cancel();
+    _partySubscription?.cancel();
+    super.dispose();
+  }
 
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+  Future<void> _checkExistingParty() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPartyCode = prefs.getString('partyCode');
 
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        if (data.containsKey('characterId') && data.containsKey('skinId')) {
-          try {
-            final foundChar = myCharacters.firstWhere(
-              (c) => c.id == data['characterId'],
-            );
-            final foundSkin = foundChar.skins.firstWhere(
-              (s) => s.id == data['skinId'],
-            );
+    if (savedPartyCode != null && savedPartyCode.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          currentPartyCode = savedPartyCode;
+        });
+        _loadPartyMembers();
+      }
+    }
+  }
+
+  void _listenToUserData() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    _userSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen(
+          (doc) {
+            if (doc.exists && doc.data() != null) {
+              final data = doc.data()!;
+
+              if (mounted) {
+                setState(() {
+                  username = data['username'] ?? "User";
+                  userLevel = data['level'] ?? 1;
+                  userPoints = data['points'] ?? 0;
+                  userExp = data['exp'] ?? 0;
+                  profileImageUrl =
+                      data['profileImageUrl']; // รับค่า URL รูปมาเก็บไว้
+                });
+              }
+
+              if (data.containsKey('characterId') &&
+                  data.containsKey('skinId')) {
+                try {
+                  final foundChar = myCharacters.firstWhere(
+                    (c) => c.id == data['characterId'],
+                  );
+                  final foundSkin = foundChar.skins.firstWhere(
+                    (s) => s.id == data['skinId'],
+                  );
+
+                  if (mounted) {
+                    setState(() {
+                      PlayerState.currentCharacter.value = foundChar;
+                      PlayerState.currentSkin.value = foundSkin;
+                    });
+                  }
+                } catch (e) {
+                  _navigateToSelectCharacter();
+                }
+              } else {
+                _navigateToSelectCharacter();
+              }
+            } else {
+              _navigateToSelectCharacter();
+            }
+          },
+          onError: (e) {
+            if (mounted) setState(() => username = "Guest");
+          },
+        );
+  }
+
+  void _loadPartyMembers() {
+    _partySubscription?.cancel();
+
+    if (currentPartyCode == null) {
+      if (mounted) setState(() => partyMembersSkins = []);
+      return;
+    }
+
+    _partySubscription = FirebaseFirestore.instance
+        .collection('parties')
+        .doc(currentPartyCode)
+        .snapshots()
+        .listen((snapshot) {
+          if (snapshot.exists && snapshot.data() != null) {
+            final partyData = snapshot.data() as Map<String, dynamic>;
+            final membersMap =
+                partyData['members'] as Map<String, dynamic>? ?? {};
+
+            final myUid = FirebaseAuth.instance.currentUser?.uid;
+            List<Skin> loadedSkins = [];
+            bool isMeStillInParty = false;
+
+            membersMap.forEach((uid, memberData) {
+              if (uid == myUid) {
+                isMeStillInParty = true;
+                return;
+              }
+
+              try {
+                String skinId = memberData['skinId'] ?? "skin_m_1";
+                bool found = false;
+
+                for (var char in myCharacters) {
+                  for (var skin in char.skins) {
+                    if (skin.id == skinId) {
+                      loadedSkins.add(skin);
+                      found = true;
+                      break;
+                    }
+                  }
+                  if (found) break;
+                }
+              } catch (e) {
+                print("Skin matching error: $e");
+              }
+            });
+
+            if (!isMeStillInParty) {
+              if (mounted) {
+                setState(() {
+                  currentPartyCode = null;
+                  partyMembersSkins = [];
+                });
+              }
+              SharedPreferences.getInstance().then(
+                (prefs) => prefs.remove('partyCode'),
+              );
+              return;
+            }
 
             if (mounted) {
               setState(() {
-                PlayerState.currentCharacter.value = foundChar;
-                PlayerState.currentSkin.value = foundSkin;
-                username = data['username'] ?? "User";
+                partyMembersSkins = loadedSkins;
               });
             }
-          } catch (e) {
-            _navigateToSelectCharacter();
+          } else {
+            if (mounted) {
+              setState(() {
+                currentPartyCode = null;
+                partyMembersSkins = [];
+              });
+            }
+            SharedPreferences.getInstance().then(
+              (prefs) => prefs.remove('partyCode'),
+            );
           }
-        } else {
-          _navigateToSelectCharacter();
-        }
-      } else {
-        _navigateToSelectCharacter();
-      }
-    } catch (e) {
-      if (mounted) setState(() => username = "Guest");
-    }
+        });
   }
 
   void _navigateToSelectCharacter() {
@@ -80,8 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -92,64 +218,102 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppTheme.backgroundCream,
         body: Stack(
           children: [
-            // 1. พื้นหลัง (เอา colorBlendMode ออกเพื่อให้ภาพสว่าง)
             Positioned.fill(
               child: Image.asset(
                 'assets/images/home_bg.jpg',
                 fit: BoxFit.cover,
-                // หากภาพพื้นหลังเดิมมืดไป สามารถปรับแต่งความโปร่งใสที่นี่
               ),
             ),
-
-            // 2. ตัวละคร 3D
-            Positioned.fill(
-              bottom: 60, // ดันขึ้นเล็กน้อยหลบ Navbar ใหม่
+            Positioned(
+              bottom: 160,
+              left: 0,
+              right: 0,
+              height: 550,
               child: ValueListenableBuilder<Skin?>(
                 valueListenable: PlayerState.currentSkin,
                 builder: (context, currentSkin, child) {
                   if (currentSkin == null) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppTheme.primaryPink,
+                    return const SizedBox.shrink();
+                  }
+
+                  List<Skin> allSkins = [currentSkin, ...partyMembersSkins];
+                  List<Widget> characterStack = [];
+
+                  Widget buildCharacter(
+                    Skin skin,
+                    int index,
+                    double xOffset,
+                    double shadowBottom,
+                  ) {
+                    return Transform.translate(
+                      offset: Offset(xOffset, 0),
+                      child: SizedBox(
+                        width: index == 0 ? 350 : 280,
+                        height: 550,
+                        child: Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            Positioned(
+                              bottom: shadowBottom,
+                              child: Container(
+                                width: index == 0 ? 140 : 100,
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.12),
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.elliptical(80, 15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            O3D(
+                              key: ValueKey("home_char_${skin.id}_$index"),
+                              controller: index == 0 ? _controller : null,
+                              src: skin.modelPath,
+                              autoPlay: true,
+                              autoRotate: false,
+                              cameraControls: false,
+                              backgroundColor: Colors.transparent,
+                              exposure: 0.9,
+                              animationName: 'Idle',
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
+
+                  if (allSkins.length == 4) {
+                    List<double> xPositions = [45.0, -45.0, -140.0, 140.0];
+                    for (int i = 3; i >= 1; i--) {
+                      characterStack.add(
+                        buildCharacter(allSkins[i], i, xPositions[i], 100),
+                      );
+                    }
+                    characterStack.add(
+                      buildCharacter(allSkins[0], 0, xPositions[0], 80.0),
+                    );
+                  } else {
+                    for (int i = allSkins.length - 1; i >= 1; i--) {
+                      int depth = (i + 1) ~/ 2;
+                      double side = (i % 2 != 0) ? -1.0 : 1.0;
+                      double xPos = depth * 100.0 * side;
+                      characterStack.add(
+                        buildCharacter(allSkins[i], i, xPos, 100),
+                      );
+                    }
+                    characterStack.add(
+                      buildCharacter(allSkins[0], 0, 0.0, 80.0),
+                    );
+                  }
+
                   return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned(
-                        bottom: 200,
-                        child: Container(
-                          width: 160,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.12),
-                            borderRadius: const BorderRadius.all(
-                              Radius.elliptical(80, 8),
-                            ),
-                          ),
-                        ),
-                      ),
-                      O3D(
-                        key: ValueKey(currentSkin.modelPath),
-                        src: currentSkin.modelPath,
-                        controller: _controller,
-                        autoPlay: true,
-                        autoRotate: false,
-                        cameraControls: false,
-                        backgroundColor: Colors.transparent,
-                        exposure: 0.8,
-                        animationName: 'Idle',
-                      ),
-                    ],
+                    alignment: Alignment.bottomCenter,
+                    children: characterStack,
                   );
                 },
               ),
             ),
-
-
-
-            // 4. UI HUD ด้านบน และปุ่ม Start ด้านล่าง
             SafeArea(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -162,8 +326,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-
   Widget _buildGameHUD(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -171,7 +333,6 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ฝั่งซ้าย: โปรไฟล์ และ Coin
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -182,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(builder: (c) => const ProfileScreen()),
                 ),
                 child: Container(
-                  width: 190,
+                  width: 210,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.85),
@@ -196,15 +357,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 22,
-                        backgroundColor: AppTheme.backgroundCream,
-                        child: Icon(
-                          Icons.person_rounded,
-                          color: AppTheme.primaryPink,
-                          size: 26,
-                        ),
-                      ),
+                      // เปลี่ยนมาใช้ UserAvatar แทน CircleAvatar เดิมที่เคยใส่ Icon ไว้
+                      UserAvatar(imageUrl: profileImageUrl, radius: 22),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -221,26 +375,57 @@ class _HomeScreenState extends State<HomeScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: const LinearProgressIndicator(
-                                value: 0.7,
-                                minHeight: 6,
-                                backgroundColor: AppTheme.backgroundCream,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppTheme.primaryPink,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              "Lv. 99",
-                              style: TextStyle(
-                                color: AppTheme.primaryPink,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            const SizedBox(height: 6),
+
+                            Builder(
+                              builder: (context) {
+                                int expNeeded = userLevel * 50;
+
+                                double progress = expNeeded > 0
+                                    ? (userExp / expNeeded).clamp(0.0, 1.0)
+                                    : 0.0;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: LinearProgressIndicator(
+                                        value: progress,
+                                        minHeight: 8,
+                                        backgroundColor: Colors.grey.shade300,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                              AppTheme.primaryPink,
+                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          "Lv. $userLevel",
+                                          style: const TextStyle(
+                                            color: AppTheme.primaryPink,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          "$userExp / $expNeeded EXP",
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -251,14 +436,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 10),
               _buildBadge(
-                "1,000",
+                "$userPoints G",
                 Icons.monetization_on_rounded,
                 AppTheme.primaryRed,
               ),
             ],
           ),
-
-          // ฝั่งขวา: Noti, Settings, Streak, Party
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -284,10 +467,19 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PartyScreen()),
-                ),
+                onTap: () async {
+                  final dynamic returnedCode = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PartyScreen(initialPartyCode: currentPartyCode),
+                    ),
+                  );
+                  if (mounted && returnedCode is String?) {
+                    setState(() => currentPartyCode = returnedCode);
+                    _loadPartyMembers();
+                  }
+                },
                 child: _buildBadge(
                   "Party",
                   Icons.celebration_rounded,
@@ -355,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomControls() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 50), // ดันปุ่มให้พ้น Navbar
+      padding: const EdgeInsets.only(bottom: 50),
       child: Center(
         child: _GameStartButton(
           onPressed: () {
@@ -372,49 +564,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _GameStartButton extends StatefulWidget {
   final VoidCallback onPressed;
-
   const _GameStartButton({required this.onPressed});
-
   @override
   __GameStartButtonState createState() => __GameStartButtonState();
 }
 
 class __GameStartButtonState extends State<_GameStartButton> {
   bool _isPressed = false;
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // เมื่อนิ้วแตะโดนปุ่ม
       onTapDown: (_) => setState(() => _isPressed = true),
-      // เมื่อปล่อยนิ้ว (สั่งให้ทำงาน)
       onTapUp: (_) {
         setState(() => _isPressed = false);
         widget.onPressed();
       },
-      // เมื่อลากนิ้วออกนอกปุ่มแล้วปล่อย
       onTapCancel: () => setState(() => _isPressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
-        // ถ้านิ้วกดอยู่ ให้ปุ่มเลื่อนลงมาด้านล่าง (ยุบตัว)
         margin: EdgeInsets.only(top: _isPressed ? 8.0 : 0.0),
         width: 240,
         height: 70,
         decoration: BoxDecoration(
-          color: AppTheme.primaryPink, // พื้นหลังสีเหลือง
+          color: AppTheme.primaryPink,
           borderRadius: BorderRadius.circular(35),
-          border: Border.all(
-            color: AppTheme.pureBlack, // เส้นขอบปุ่มสีดำหนา
-            width: 4,
-          ),
-          // ถ้านิ้วกดอยู่ เงาจะหายไป (เพราะปุ่มยุบลงไปติดพื้น)
+          border: Border.all(color: AppTheme.pureBlack, width: 4),
           boxShadow: _isPressed
               ? []
               : [
                   const BoxShadow(
-                    color: AppTheme.pureBlack, // เงาทึบสีดำ
-                    blurRadius: 0, // ไม่เบลอเงาเลย
-                    offset: Offset(0, 8), // ความหนาของเงาปุ่ม
+                    color: AppTheme.pureBlack,
+                    blurRadius: 0,
+                    offset: Offset(0, 8),
                   ),
                 ],
         ),

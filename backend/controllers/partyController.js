@@ -195,3 +195,31 @@ exports.startParty = async (req, res) => {
         res.status(500).json({ message: "Error", error: error.message });
     }
 };
+
+// 8. ดึงข้อมูลสมาชิกในปาร์ตี้ (Get Party Details)
+exports.getPartyDetails = async (req, res) => {
+    try {
+        const { partyCode } = req.params;
+        const partyRef = db.collection('parties').doc(partyCode);
+        const partyDoc = await partyRef.get();
+
+        if (!partyDoc.exists) {
+            return res.status(404).json({ message: "ไม่พบปาร์ตี้นี้" });
+        }
+
+        const partyData = partyDoc.data();
+        
+        // แปลงข้อมูล members จาก Object ให้กลายเป็น Array เพื่อให้ Flutter เอาไปลูปง่ายๆ
+        const membersList = Object.keys(partyData.members).map(uid => {
+            return {
+                uid: uid,
+                ...partyData.members[uid]
+            };
+        });
+
+        res.status(200).json({ members: membersList });
+    } catch (error) {
+        console.error("Error getting party details:", error);
+        res.status(500).json({ message: "Error", error: error.message });
+    }
+};

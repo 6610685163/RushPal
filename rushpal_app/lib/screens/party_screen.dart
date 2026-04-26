@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rushpal/theme/app_theme.dart';
 import 'package:rushpal/services/party_service.dart';
 import 'start_run_screen.dart';
+import '../models/character_model.dart';
+import 'package:rushpal/widgets/user_avatar.dart';
 
 class PartyScreen extends StatefulWidget {
   final String? initialPartyCode;
@@ -15,22 +17,22 @@ class PartyScreen extends StatefulWidget {
 }
 
 class _PartyScreenState extends State<PartyScreen> {
-  String? partyCode; // รหัสห้อง 5 หลัก
+  String? partyCode;
   bool isLoading = false;
   final TextEditingController _joinController = TextEditingController();
 
-  // 🌟 ฟังก์ชันสร้างห้องใหม่
   Future<void> _createParty() async {
     setState(() => isLoading = true);
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
-        // ดึง Username จาก Firestore
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
-        String username = 'Host'; // ค่า default
+        String username = 'Host';
+        String currentSkinId = PlayerState.currentSkin.value?.id ?? "skin_m_1";
+
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
           username = userData['username'] ?? user.displayName ?? 'Host';
@@ -41,7 +43,7 @@ class _PartyScreenState extends State<PartyScreen> {
         final code = await PartyService.createParty(
           uid: user.uid,
           username: username,
-          skinId: "skin_m_1",
+          skinId: currentSkinId,
         );
         if (code != null) {
           setState(() => partyCode = code);
@@ -49,7 +51,6 @@ class _PartyScreenState extends State<PartyScreen> {
         }
       } catch (e) {
         print('Error fetching user data: $e');
-        // Fallback ใช้ displayName หรือ Host
         final username = user.displayName ?? 'Host';
         final code = await PartyService.createParty(
           uid: user.uid,
@@ -59,6 +60,9 @@ class _PartyScreenState extends State<PartyScreen> {
         if (code != null) {
           setState(() => partyCode = code);
           await _savePartyCode(code);
+        }
+        if (mounted) {
+          setState(() => isLoading = false);
         }
       }
     }
@@ -97,28 +101,28 @@ class _PartyScreenState extends State<PartyScreen> {
       canPop: false,
       onPopInvoked: (didPop) {
         if (didPop) return;
-        Navigator.pop(context, partyCode); // ส่งรหัสห้องกลับไปหน้า Home
+        Navigator.pop(context, partyCode);
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundCream,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+            icon: const Icon(Icons.arrow_back_ios, color: AppTheme.pureBlack),
             onPressed: () => Navigator.pop(context, partyCode),
           ),
           title: const Text(
-            "Party",
+            "PARTY",
             style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
+              color: AppTheme.pureBlack,
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+              letterSpacing: 2,
             ),
           ),
           centerTitle: true,
           actions: [
-            // 🌟 ถ้ายังไม่มีห้อง ให้โชว์ปุ่ม Join
             if (partyCode == null)
               TextButton(
                 onPressed: () => _showJoinDialog(context),
@@ -140,14 +144,13 @@ class _PartyScreenState extends State<PartyScreen> {
                   child: CircularProgressIndicator(color: AppTheme.primaryRed),
                 )
               : partyCode == null
-              ? _buildNoPartyState() // หน้าจอตอนยังไม่มีปาร์ตี้
-              : _buildPartyLobby(), // หน้าจอ Lobby เมื่อมีปาร์ตี้แล้ว
+              ? _buildNoPartyState()
+              : _buildPartyLobby(),
         ),
       ),
     );
   }
 
-  // --- UI ตอนยังไม่ได้สร้างหรือเข้าร่วมปาร์ตี้ ---
   Widget _buildNoPartyState() {
     return Center(
       child: Column(
@@ -157,23 +160,31 @@ class _PartyScreenState extends State<PartyScreen> {
           const SizedBox(height: 20),
           const Text(
             "You are not in a party",
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 30),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+          GestureDetector(
+            onTap: _createParty,
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              shape: RoundedRectangleBorder(
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
                 borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: AppTheme.pureBlack, width: 3),
+                boxShadow: const [
+                  BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+                ],
               ),
-            ),
-            onPressed: _createParty,
-            child: const Text(
-              "CREATE NEW PARTY",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+              child: const Text(
+                "CREATE NEW PARTY",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ),
@@ -182,7 +193,6 @@ class _PartyScreenState extends State<PartyScreen> {
     );
   }
 
-  // --- UI หน้า Lobby (ที่เพื่อนคุณทำไว้ แต่เปลี่ยนเป็น Real-time) ---
   Widget _buildPartyLobby() {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -191,50 +201,58 @@ class _PartyScreenState extends State<PartyScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: Text("Connecting to party..."));
+          return const Center(
+            child: Text(
+              "Connecting to party...",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          );
         }
 
         if (!snapshot.data!.exists) {
-          // Party ถูกลบ ลบ shared และ reset
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             await _clearPartyCode();
             setState(() => partyCode = null);
           });
-          return const Center(child: Text("Party has been deleted."));
+          return const Center(
+            child: Text(
+              "Party has been deleted.",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          );
         }
 
         var partyData = snapshot.data!.data() as Map<String, dynamic>;
         var members = partyData['members'] as Map<String, dynamic>;
 
-        // 🌟 1. ดักจังหวะวาร์ป: ถ้าหัวหน้ากด Start แล้ว status เป็น 'running'
         if (partyData['status'] == 'running') {
-          // ใช้ addPostFrameCallback เพื่อให้ Flutter วาด UI เสร็จก่อนค่อยสั่งเปลี่ยนหน้า (กัน Error)
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => StartRunScreen(partyCode: partyCode!),
-              ), // พาไปหน้าวิ่งเลย!
+              ),
             );
           });
-          // โชว์ข้อความรอก่อนโดนเด้ง
           return const Center(
             child: Text(
               "🏃‍♂️💨 ปาร์ตี้กำลังจะเริ่ม...",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
           );
         }
 
-        // เช็คว่าเราเป็นหัวหน้าห้องไหม
         final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
         bool isLeader = members[currentUserUid]?['isLeader'] ?? false;
 
-        // เช็คว่าลูกทีมทุกคน (ยกเว้นเรา) กด Ready ครบหรือยัง
-        bool isAllReady = members.values.every((m) => m['isReady'] == true);
+        bool isOthersReady = true;
+        if (members.length > 1) {
+          isOthersReady = members.entries
+              .where((entry) => entry.key != currentUserUid)
+              .every((entry) => entry.value['isReady'] == true);
+        }
 
-        // 🌟 เพิ่มบรรทัดนี้: ถ้าในปาร์ตี้มีคนเดียว (length == 1) หรือ ทุกคนพร้อมแล้ว = ให้เริ่มได้!
-        bool canStart = members.length == 1 || isAllReady;
+        bool canStart = members.length == 1 || isOthersReady;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -243,46 +261,54 @@ class _PartyScreenState extends State<PartyScreen> {
             children: [
               const SizedBox(height: 20),
               const Text(
-                "Party Name",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                "Lobby",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.pureBlack,
+                ),
               ),
-              const SizedBox(height: 8),
-
-              // Party Code Section
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 12,
+                  vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: AppTheme.pureBlack, width: 3),
+                  boxShadow: const [
+                    BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+                  ],
                 ),
                 child: Row(
                   children: [
                     const Text(
-                      "Party code: ",
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      "Code: ",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
-                      partyCode!, // 🌟 โชว์รหัสจริงจากระบบ
+                      partyCode!,
                       style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
                         color: AppTheme.primaryRed,
-                        letterSpacing: 1.2,
+                        letterSpacing: 1.5,
                       ),
                     ),
                     const Spacer(),
                     IconButton(
                       icon: const Icon(
                         Icons.copy,
-                        color: Colors.grey,
+                        color: AppTheme.pureBlack,
                         size: 20,
                       ),
-                      onPressed: () {
-                        /* Logic Copy รหัส */
-                      },
+                      onPressed: () {},
                     ),
                   ],
                 ),
@@ -292,13 +318,12 @@ class _PartyScreenState extends State<PartyScreen> {
               Text(
                 "Members (${members.length}/4)",
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Member List (ดึงข้อมูลจริงจาก Firestore)
               Expanded(
                 child: ListView.separated(
                   itemCount: members.length,
@@ -311,119 +336,127 @@ class _PartyScreenState extends State<PartyScreen> {
                 ),
               ),
 
-              // ปุ่ม Leave Party
               const SizedBox(height: 10),
-              // --- 🌟 โซนปุ่มกด Ready และ Leave ---
               Row(
                 children: [
-                  // ปุ่ม READY / CANCEL
-                  // 🌟 2. ปุ่ม START (สำหรับหัวหน้า) หรือ READY (สำหรับลูกทีม)
-                  // ปุ่ม START / READY
                   Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user == null) return;
+                    child: GestureDetector(
+                      onTap: () async {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) return;
 
-                          if (isLeader) {
-                            // โลจิกของหัวหน้าห้อง: 🌟 เปลี่ยนมาเช็ค canStart แทน
-                            if (canStart) {
-                              bool success = await PartyService.startParty(
-                                partyCode: partyCode!,
-                              );
+                        if (isLeader) {
+                          if (canStart) {
+                            bool success = await PartyService.startParty(
+                              partyCode: partyCode!,
+                            );
 
-                              if (!success) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "เริ่มเกมไม่สำเร็จ! เช็คเซิร์ฟเวอร์ Node.js หรือเน็ตมือถือ",
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
+                            if (!success) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("เริ่มเกมไม่สำเร็จ!"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
                               }
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("รอให้ทุกคนกด Ready ก่อน!"),
-                                ),
-                              );
                             }
                           } else {
-                            // โลจิกของลูกทีม: กดเพื่อ Ready/Cancel
-                            bool myReadyStatus =
-                                members[user.uid]?['isReady'] ?? false;
-                            await PartyService.toggleReady(
-                              partyCode: partyCode!,
-                              uid: user.uid,
-                              isReady: !myReadyStatus,
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("รอให้ทุกคนกด Ready ก่อน!"),
+                              ),
                             );
                           }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          // 🌟 เปลี่ยนสีปุ่ม: ให้ใช้ canStart เช็ค
-                          backgroundColor: isLeader
+                        } else {
+                          bool myReadyStatus =
+                              members[user.uid]?['isReady'] ?? false;
+                          await PartyService.toggleReady(
+                            partyCode: partyCode!,
+                            uid: user.uid,
+                            isReady: !myReadyStatus,
+                          );
+                        }
+                      },
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: isLeader
                               ? (canStart ? Colors.green : Colors.grey)
                               : ((members[currentUserUid]?['isReady'] ?? false)
                                     ? Colors.orange
                                     : Colors.green),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.pureBlack,
+                            width: 3,
                           ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppTheme.pureBlack,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: Text(
-                          isLeader
-                              ? "START RUN"
-                              : ((members[currentUserUid]?['isReady'] ?? false)
-                                    ? "CANCEL"
-                                    : "READY"),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        child: Center(
+                          child: Text(
+                            isLeader
+                                ? "START RUN"
+                                : ((members[currentUserUid]?['isReady'] ??
+                                          false)
+                                      ? "CANCEL"
+                                      : "READY"),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  // ปุ่ม LEAVE PARTY
+                  const SizedBox(width: 15),
                   Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user != null) {
-                            // 🌟 ยิง API ลบตัวเองออกจาก Database
-                            bool success = await PartyService.leaveParty(
-                              partyCode: partyCode!,
-                              uid: user.uid,
-                            );
+                    child: GestureDetector(
+                      onTap: () async {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user != null) {
+                          bool success = await PartyService.leaveParty(
+                            partyCode: partyCode!,
+                            uid: user.uid,
+                          );
 
-                            if (success) {
-                              // ถ้าลบสำเร็จ ค่อยรีเซ็ตหน้าจอ
-                              setState(() => partyCode = null);
-                              await _clearPartyCode();
-                            }
+                          if (success) {
+                            setState(() => partyCode = null);
+                            await _clearPartyCode();
                           }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryRed,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        }
+                      },
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.pureBlack,
+                            width: 3,
                           ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppTheme.pureBlack,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: const Text(
-                          "LEAVE",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        child: const Center(
+                          child: Text(
+                            "LEAVE",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -431,7 +464,7 @@ class _PartyScreenState extends State<PartyScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
             ],
           ),
         );
@@ -443,73 +476,100 @@ class _PartyScreenState extends State<PartyScreen> {
     bool isLeader = data['isLeader'] ?? false;
     bool isReady = data['isReady'] ?? false;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isReady ? Colors.green.withOpacity(0.3) : Colors.grey[200]!,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String displayUsername = data['username'] ?? "Loading...";
+        String displayLevel = "...";
+        String? profileImageUrl;
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          displayUsername = userData['username'] ?? displayUsername;
+          displayLevel = (userData['level'] ?? 1).toString();
+          profileImageUrl = userData['profileImageUrl'];
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.pureBlack, width: 3),
+            boxShadow: const [
+              BoxShadow(color: AppTheme.pureBlack, offset: Offset(0, 4)),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.grey,
-            child: Icon(Icons.person, color: Colors.white),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Row(
+            children: [
+              UserAvatar(imageUrl: profileImageUrl, radius: 25),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        Text(
+                          displayUsername,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            color: AppTheme.pureBlack,
+                          ),
+                        ),
+                        if (isLeader) ...[
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.star,
+                            color: Colors.orange,
+                            size: 16,
+                          ),
+                        ],
+                      ],
+                    ),
                     Text(
-                      data['username'] ?? "Unknown",
+                      "Lv. $displayLevel",
                       style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
                     ),
-                    if (isLeader) ...[
-                      const SizedBox(width: 8),
-                      const Icon(Icons.star, color: Colors.orange, size: 16),
-                    ],
                   ],
                 ),
-                const Text(
-                  "Lv. 1",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: isReady ? Colors.green.withOpacity(0.1) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              isLeader ? "Leader" : (isReady ? "Ready" : "Waiting"),
-              style: TextStyle(
-                color: isLeader || isReady ? Colors.green : Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
               ),
-            ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isReady
+                      ? Colors.green.withOpacity(0.1)
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isReady ? Colors.green : Colors.grey,
+                    width: 2,
+                  ),
+                ),
+                child: Text(
+                  isLeader ? "Leader" : (isReady ? "Ready" : "Wait"),
+                  style: TextStyle(
+                    color: isLeader || isReady ? Colors.green : Colors.grey,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -518,46 +578,73 @@ class _PartyScreenState extends State<PartyScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Join Party"),
+          backgroundColor: AppTheme.backgroundCream,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppTheme.pureBlack, width: 3),
+          ),
+          title: const Text(
+            "JOIN PARTY",
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
           content: TextField(
             controller: _joinController,
-            decoration: const InputDecoration(hintText: "Enter 5-digit code"),
+            decoration: const InputDecoration(
+              hintText: "Enter 5-digit code",
+              hintStyle: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+              child: const Text(
+                "CANCEL",
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
                 final user = FirebaseAuth.instance.currentUser;
-                final codeInput = _joinController.text
-                    .trim(); // เอาช่องว่างหัวท้ายออก
+                final codeInput = _joinController.text.trim();
 
                 if (user != null && codeInput.isNotEmpty) {
-                  // 🌟 เรียกใช้ API ที่เพิ่งสร้าง
+                  String myUsername = "Player";
+                  try {
+                    final userDoc = await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user.uid)
+                        .get();
+                    if (userDoc.exists) {
+                      myUsername =
+                          userDoc.data()?['username'] ??
+                          user.displayName ??
+                          "Player";
+                    }
+                  } catch (e) {
+                    myUsername = user.displayName ?? "Player";
+                  }
+
                   final joinedCode = await PartyService.joinPartyByCode(
                     partyCode: codeInput,
                     uid: user.uid,
-                    username:
-                        "Guest_Player", // TODO: อนาคตค่อยดึงชื่อจริงจาก Firestore
-                    skinId: "skin_m_1",
+                    username: myUsername,
+                    skinId: PlayerState.currentSkin.value?.id ?? "skin_m_1",
                   );
 
                   if (joinedCode != null) {
-                    // ถ้าเข้าสำเร็จ ปิด Dialog และเปลี่ยนหน้าจอไปที่ Lobby
                     Navigator.pop(context);
                     setState(() {
                       partyCode = joinedCode;
-                      _joinController.clear(); // ล้างช่องกรอกเผื่อไว้
+                      _joinController.clear();
                     });
+                    await _savePartyCode(joinedCode);
                   } else {
-                    // ถ้าเข้าไม่ได้ (รหัสผิด/ห้องไม่มีจริง) โชว์แจ้งเตือน
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          "รหัสห้องไม่ถูกต้อง หรือปาร์ตี้เริ่มไปแล้ว!",
-                        ),
+                        content: Text("รหัสห้องไม่ถูกต้อง!"),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -566,11 +653,19 @@ class _PartyScreenState extends State<PartyScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryRed,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: AppTheme.pureBlack, width: 2),
                 ),
               ),
-              child: const Text("Join", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "JOIN",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );
