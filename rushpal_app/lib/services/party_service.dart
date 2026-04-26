@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PartyService {
-  static const String baseUrl = 'http://10.0.2.2:3000/api/parties';
+  static const String baseUrl = 'https://rushpal.onrender.com/api/parties';
 
   // --- 1. สร้างห้องปาร์ตี้ (Host) ---
   static Future<String?> createParty({
