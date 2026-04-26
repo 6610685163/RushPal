@@ -20,6 +20,11 @@ app.get('/', (req, res) => {
   res.send('Running App Backend is Online! 🏃‍♂️');
 });
 
+// Quest routes — mount ก่อน /api/runs เพื่อให้ Express จับได้แน่นอน
+const runController = require('./controllers/runController');
+app.get('/api/runs/quest/:user_id', runController.getQuestStatus);
+app.post('/api/runs/claim', runController.claimQuest);
+
 const runRoutes = require('./routes/runRoutes');
 app.use('/api/runs', runRoutes);
 
